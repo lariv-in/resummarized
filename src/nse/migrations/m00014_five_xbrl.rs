@@ -1,0 +1,228 @@
+use sea_orm_migration::prelude::*;
+
+#[derive(DeriveMigrationName)]
+pub struct Migration;
+
+#[derive(Copy, Clone, DeriveIden)]
+enum NseRssItems {
+    Table,
+    RptNseSymbol,
+    RptScripCode,
+    RptMseiSymbol,
+    RptCompanyName,
+    RptFyStart,
+    RptFyEnd,
+    RptReportingPeriod,
+    RptPeriodStart,
+    RptPeriodEnd,
+    RptHasRelatedParty,
+    RptEnteredTransactions,
+    RptTransactionCount,
+    RptCounterparty,
+    RptTransactionType,
+    RptAmount,
+    IcNseSymbol,
+    IcScripCode,
+    IcMseiSymbol,
+    IcIsin,
+    IcCompanyName,
+    IcClass,
+    IcPeriodEnd,
+    IcSubmissionType,
+    IcPendingStart,
+    IcReceived,
+    IcDisposed,
+    IcPendingEnd,
+    IcScoresId,
+    ItNseSymbol,
+    ItScripCode,
+    ItMseiSymbol,
+    ItIsin,
+    ItCompanyName,
+    ItRegulation,
+    ItInstrument,
+    ItPerson,
+    ItCategory,
+    ItTxnType,
+    ItQty,
+    ItValue,
+    ItMode,
+    ItFromDate,
+    ItToDate,
+    ItPriorQty,
+    ItPriorPct,
+    ItPostQty,
+    ItPostPct,
+    ItSignatory,
+    ItDesignation,
+    ItFilingDate,
+    ItExchange,
+    IffNseSymbol,
+    IffScripCode,
+    IffMseiSymbol,
+    IffIsin,
+    IffCompanyName,
+    IffTypeOfCompany,
+    IffClassOfSecurity,
+    IffFyStart,
+    IffFyEnd,
+    IffReportingPeriod,
+    IffReportingQuarter,
+    IffPeriodStart,
+    IffPeriodEnd,
+    IffAudited,
+    IffNature,
+    IffBoardMeeting,
+    IffRevenue,
+    IffProfit,
+    FrNseSymbol,
+    FrScripCode,
+    FrMseiSymbol,
+    FrCompanyName,
+    FrClassOfSecurity,
+    FrFyStart,
+    FrFyEnd,
+    FrReportingQuarter,
+    FrPeriodStart,
+    FrPeriodEnd,
+    FrAudited,
+    FrNature,
+    FrBoardMeeting,
+    FrRevenue,
+    FrProfit,
+}
+
+fn text_cols() -> &'static [NseRssItems] {
+    &[
+        NseRssItems::RptNseSymbol,
+        NseRssItems::RptScripCode,
+        NseRssItems::RptMseiSymbol,
+        NseRssItems::RptCompanyName,
+        NseRssItems::RptReportingPeriod,
+        NseRssItems::RptHasRelatedParty,
+        NseRssItems::RptEnteredTransactions,
+        NseRssItems::RptTransactionCount,
+        NseRssItems::RptCounterparty,
+        NseRssItems::RptTransactionType,
+        NseRssItems::RptAmount,
+        NseRssItems::IcNseSymbol,
+        NseRssItems::IcScripCode,
+        NseRssItems::IcMseiSymbol,
+        NseRssItems::IcIsin,
+        NseRssItems::IcCompanyName,
+        NseRssItems::IcClass,
+        NseRssItems::IcSubmissionType,
+        NseRssItems::IcPendingStart,
+        NseRssItems::IcReceived,
+        NseRssItems::IcDisposed,
+        NseRssItems::IcPendingEnd,
+        NseRssItems::IcScoresId,
+        NseRssItems::ItNseSymbol,
+        NseRssItems::ItScripCode,
+        NseRssItems::ItMseiSymbol,
+        NseRssItems::ItIsin,
+        NseRssItems::ItCompanyName,
+        NseRssItems::ItRegulation,
+        NseRssItems::ItInstrument,
+        NseRssItems::ItPerson,
+        NseRssItems::ItCategory,
+        NseRssItems::ItTxnType,
+        NseRssItems::ItQty,
+        NseRssItems::ItValue,
+        NseRssItems::ItMode,
+        NseRssItems::ItPriorQty,
+        NseRssItems::ItPriorPct,
+        NseRssItems::ItPostQty,
+        NseRssItems::ItPostPct,
+        NseRssItems::ItSignatory,
+        NseRssItems::ItDesignation,
+        NseRssItems::ItExchange,
+        NseRssItems::IffNseSymbol,
+        NseRssItems::IffScripCode,
+        NseRssItems::IffMseiSymbol,
+        NseRssItems::IffIsin,
+        NseRssItems::IffCompanyName,
+        NseRssItems::IffTypeOfCompany,
+        NseRssItems::IffClassOfSecurity,
+        NseRssItems::IffReportingPeriod,
+        NseRssItems::IffReportingQuarter,
+        NseRssItems::IffAudited,
+        NseRssItems::IffNature,
+        NseRssItems::IffRevenue,
+        NseRssItems::IffProfit,
+        NseRssItems::FrNseSymbol,
+        NseRssItems::FrScripCode,
+        NseRssItems::FrMseiSymbol,
+        NseRssItems::FrCompanyName,
+        NseRssItems::FrClassOfSecurity,
+        NseRssItems::FrReportingQuarter,
+        NseRssItems::FrAudited,
+        NseRssItems::FrNature,
+        NseRssItems::FrRevenue,
+        NseRssItems::FrProfit,
+    ]
+}
+
+fn date_cols() -> &'static [NseRssItems] {
+    &[
+        NseRssItems::RptFyStart,
+        NseRssItems::RptFyEnd,
+        NseRssItems::RptPeriodStart,
+        NseRssItems::RptPeriodEnd,
+        NseRssItems::IcPeriodEnd,
+        NseRssItems::ItFromDate,
+        NseRssItems::ItToDate,
+        NseRssItems::ItFilingDate,
+        NseRssItems::IffFyStart,
+        NseRssItems::IffFyEnd,
+        NseRssItems::IffPeriodStart,
+        NseRssItems::IffPeriodEnd,
+        NseRssItems::IffBoardMeeting,
+        NseRssItems::FrFyStart,
+        NseRssItems::FrFyEnd,
+        NseRssItems::FrPeriodStart,
+        NseRssItems::FrPeriodEnd,
+        NseRssItems::FrBoardMeeting,
+    ]
+}
+
+#[async_trait::async_trait]
+impl MigrationTrait for Migration {
+    async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        for col in text_cols() {
+            manager
+                .alter_table(
+                    Table::alter()
+                        .table(NseRssItems::Table)
+                        .add_column(ColumnDef::new(*col).text())
+                        .to_owned(),
+                )
+                .await?;
+        }
+        for col in date_cols() {
+            manager
+                .alter_table(
+                    Table::alter()
+                        .table(NseRssItems::Table)
+                        .add_column(ColumnDef::new(*col).date())
+                        .to_owned(),
+                )
+                .await?;
+        }
+        Ok(())
+    }
+
+    async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        for col in date_cols().iter().rev().chain(text_cols().iter().rev()) {
+            manager
+                .alter_table(
+                    Table::alter()
+                        .table(NseRssItems::Table)
+                        .drop_column(*col)
+                        .to_owned(),
+                )
+                .await?;
+        }
+        Ok(())
+    }
+}

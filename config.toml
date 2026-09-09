@@ -1,0 +1,20 @@
+database_url = "postgres://postgres:0708@localhost:5432/resummarized"
+bind = "0.0.0.0:42069"
+
+[users]
+adminEmail = "admin@example.com"
+adminPassword = "adminadmin"
+
+[filesystem]
+storageBackend = "local"
+localDir = "filesystem"
+
+[website]
+newPageRootDir = "website/pages"
+assetsDir = "website/assets"
+
+[nse]
+poll_interval_secs = 300
+
+[bse]
+poll_interval_secs = 300

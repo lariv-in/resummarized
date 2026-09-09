@@ -1,0 +1,64 @@
+[package]
+name = "resummarized"
+version = "0.1.0"
+edition = "2024"
+
+[[bin]]
+name = "resummarized"
+path = "src/main.rs"
+
+[dependencies]
+lariv-rs = { version = "0.1.0",
+	path = "../../lariv-rs",
+	# git = "https://github.com/lariv-in/lariv-rs",
+	default-features = false, features = [
+		"plugin-users",
+		"plugin-otp",
+		"plugin-signup",
+		"plugin-dashboard",
+		"plugin-filesystem",
+		"plugin-website",
+		"plugin-llm-assistant",
+] }
+tokio = { version = "1", features = ["full"] }
+anyhow = { version = "1", features = ["backtrace"] }
+async-trait = "0.1"
+frunk = { version = "0.5.0", features = ["serde", "std"] }
+frunk_core = "0.5.0"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing = "0.1"
+chrono = { version = "0.4", features = ["serde", "clock"] }
+axum = { version = "0.8", features = ["form", "macros"] }
+maud = { version = "0.27", features = ["axum"] }
+serde = { version = "1", features = ["derive"] }
+reqwest = { version = "0.12", default-features = false, features = [
+	"rustls-tls",
+	"cookies",
+	"gzip",
+	"brotli",
+] }
+quick-xml = { version = "0.37", features = ["serialize"] }
+sha2 = "0.10"
+serde_json = "1"
+rune = "0.14"
+sea-orm = { version = "1.1", features = [
+	"runtime-tokio-rustls",
+	"sqlx-postgres",
+	"sqlx-sqlite",
+	"macros",
+	"with-chrono",
+	"with-json",
+] }
+sea-orm-migration = { version = "1.1", features = [
+	"sqlx-postgres",
+	"sqlx-sqlite",
+	"runtime-tokio-rustls",
+] }
+
+[dev-dependencies]
+uuid = { version = "1", features = ["v4"] }
+
+[profile.release]
+lto = "thin"
+strip = true
+codegen-units = 1

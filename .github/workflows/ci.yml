@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly-2026-08-27
+          components: rustc-codegen-cranelift-preview
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: check
+          save-if: ${{ github.ref == 'refs/heads/master' }}
+      - run: cargo check --workspace
+
+  # Warm Release-Cache on master (tags can restore it) and upload the LTO'd
+  # binary so tag releases can skip cargo/LTO entirely for the same commit.
+  release-cache:
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly-2026-08-27
+      - uses: swatinem/rust-cache@v2
+        with:
+          shared-key: Release-Cache
+          add-rust-environment-hash-key: false
+          cache-workspace-crates: true
+          cache-on-failure: true
+      - run: cargo build --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: resummarized-${{ github.sha }}
+          path: target/release/resummarized
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
