@@ -102,7 +102,10 @@ async fn ensure_homepage_state(
     let html = rewrite_static_urls(HOMEPAGE_HTML, &media_urls);
     let (page, page_rewritten) = ensure_page_vnode(db, store, html.as_bytes()).await?;
     ensure_db_route(db, ROUTE_PATH, page.id, THEME, page_rewritten).await?;
-    tracing::info!(page_id = page.id, "resummarized website: homepage route ready");
+    tracing::info!(
+        page_id = page.id,
+        "resummarized website: homepage route ready"
+    );
     Ok(())
 }
 
@@ -127,16 +130,9 @@ async fn ensure_custom_theme(
         None => None,
     };
 
-    let css = ensure_file_vnode(
-        db,
-        store,
-        parent_id,
-        parent.as_ref(),
-        THEME_CSS_NAME,
-        css,
-    )
-    .await?
-    .0;
+    let css = ensure_file_vnode(db, store, parent_id, parent.as_ref(), THEME_CSS_NAME, css)
+        .await?
+        .0;
     let js = ensure_file_vnode(
         db,
         store,

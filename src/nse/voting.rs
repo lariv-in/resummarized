@@ -3,7 +3,9 @@
 use chrono::NaiveDate;
 use std::collections::HashMap;
 
-use super::entities::item::{ActiveModel as ItemAM, Column as ItemColumn, Model as ItemModel};
+use super::entities::voting_results::{
+    ActiveModel as VoteAM, Column as VoteColumn, Model as VoteModel,
+};
 use super::xbrl::{first_text_facts, opt_date, opt_str, set_opt, set_opt_date, take, take_date};
 
 /// Document-level meeting facts (not per-resolution vote tables).
@@ -38,44 +40,32 @@ impl VoteFacts {
         self.symbol.is_some() || self.company_name.is_some() || self.isin.is_some()
     }
 
-    pub fn apply(&self, am: &mut ItemAM) {
-        set_opt(&mut am.voting_scrip_code, &self.scrip_code);
-        set_opt(&mut am.voting_symbol, &self.symbol);
-        set_opt(&mut am.voting_msei_symbol, &self.msei_symbol);
-        set_opt(&mut am.voting_isin, &self.isin);
-        set_opt(&mut am.voting_company_name, &self.company_name);
-        set_opt(&mut am.voting_type_of_meeting, &self.type_of_meeting);
-        set_opt_date(&mut am.voting_date_of_meeting, self.date_of_meeting);
-        set_opt(&mut am.voting_start_time, &self.start_time);
-        set_opt(&mut am.voting_end_time, &self.end_time);
-        set_opt(&mut am.voting_scrutinizer, &self.scrutinizer_name);
-        set_opt(&mut am.voting_scrutinizer_firm, &self.scrutinizer_firm);
+    pub fn apply(&self, am: &mut VoteAM) {
+        set_opt(&mut am.scrip_code, &self.scrip_code);
+        set_opt(&mut am.symbol, &self.symbol);
+        set_opt(&mut am.msei_symbol, &self.msei_symbol);
+        set_opt(&mut am.isin, &self.isin);
+        set_opt(&mut am.company_name, &self.company_name);
+        set_opt(&mut am.type_of_meeting, &self.type_of_meeting);
+        set_opt_date(&mut am.date_of_meeting, self.date_of_meeting);
+        set_opt(&mut am.start_time, &self.start_time);
+        set_opt(&mut am.end_time, &self.end_time);
+        set_opt(&mut am.scrutinizer, &self.scrutinizer_name);
+        set_opt(&mut am.scrutinizer_firm, &self.scrutinizer_firm);
         set_opt(
-            &mut am.voting_scrutinizer_qualification,
+            &mut am.scrutinizer_qualification,
             &self.scrutinizer_qualification,
         );
-        set_opt(
-            &mut am.voting_scrutinizer_membership,
-            &self.scrutinizer_membership,
-        );
-        set_opt_date(
-            &mut am.voting_board_meeting_date,
-            self.scrutinizer_appointed,
-        );
-        set_opt_date(&mut am.voting_report_issuance_date, self.report_date);
-        set_opt_date(&mut am.voting_record_date, self.date_of_record);
-        set_opt(
-            &mut am.voting_shareholders_on_record,
-            &self.shareholders_on_record,
-        );
-        set_opt(
-            &mut am.voting_promoters_in_person,
-            &self.promoters_in_person,
-        );
-        set_opt(&mut am.voting_public_in_person, &self.public_in_person);
-        set_opt(&mut am.voting_promoters_vc, &self.promoters_vc);
-        set_opt(&mut am.voting_public_vc, &self.public_vc);
-        set_opt(&mut am.voting_resolutions_passed, &self.resolutions_passed);
+        set_opt(&mut am.scrutinizer_membership, &self.scrutinizer_membership);
+        set_opt_date(&mut am.board_meeting_date, self.scrutinizer_appointed);
+        set_opt_date(&mut am.report_issuance_date, self.report_date);
+        set_opt_date(&mut am.record_date, self.date_of_record);
+        set_opt(&mut am.shareholders_on_record, &self.shareholders_on_record);
+        set_opt(&mut am.promoters_in_person, &self.promoters_in_person);
+        set_opt(&mut am.public_in_person, &self.public_in_person);
+        set_opt(&mut am.promoters_vc, &self.promoters_vc);
+        set_opt(&mut am.public_vc, &self.public_vc);
+        set_opt(&mut am.resolutions_passed, &self.resolutions_passed);
     }
 }
 
@@ -232,57 +222,57 @@ impl VoteField {
         }
     }
 
-    pub fn column(self) -> ItemColumn {
+    pub fn column(self) -> VoteColumn {
         match self {
-            Self::Symbol => ItemColumn::VotingSymbol,
-            Self::ScripCode => ItemColumn::VotingScripCode,
-            Self::MseiSymbol => ItemColumn::VotingMseiSymbol,
-            Self::Isin => ItemColumn::VotingIsin,
-            Self::CompanyName => ItemColumn::VotingCompanyName,
-            Self::TypeOfMeeting => ItemColumn::VotingTypeOfMeeting,
-            Self::DateOfMeeting => ItemColumn::VotingDateOfMeeting,
-            Self::StartTime => ItemColumn::VotingStartTime,
-            Self::EndTime => ItemColumn::VotingEndTime,
-            Self::DateOfRecord => ItemColumn::VotingRecordDate,
-            Self::ShareholdersOnRecord => ItemColumn::VotingShareholdersOnRecord,
-            Self::ResolutionsPassed => ItemColumn::VotingResolutionsPassed,
-            Self::PromotersInPerson => ItemColumn::VotingPromotersInPerson,
-            Self::PublicInPerson => ItemColumn::VotingPublicInPerson,
-            Self::PromotersVc => ItemColumn::VotingPromotersVc,
-            Self::PublicVc => ItemColumn::VotingPublicVc,
-            Self::ScrutinizerName => ItemColumn::VotingScrutinizer,
-            Self::ScrutinizerFirm => ItemColumn::VotingScrutinizerFirm,
-            Self::ScrutinizerQualification => ItemColumn::VotingScrutinizerQualification,
-            Self::ScrutinizerMembership => ItemColumn::VotingScrutinizerMembership,
-            Self::ScrutinizerAppointed => ItemColumn::VotingBoardMeetingDate,
-            Self::ReportDate => ItemColumn::VotingReportIssuanceDate,
+            Self::Symbol => VoteColumn::Symbol,
+            Self::ScripCode => VoteColumn::ScripCode,
+            Self::MseiSymbol => VoteColumn::MseiSymbol,
+            Self::Isin => VoteColumn::Isin,
+            Self::CompanyName => VoteColumn::CompanyName,
+            Self::TypeOfMeeting => VoteColumn::TypeOfMeeting,
+            Self::DateOfMeeting => VoteColumn::DateOfMeeting,
+            Self::StartTime => VoteColumn::StartTime,
+            Self::EndTime => VoteColumn::EndTime,
+            Self::DateOfRecord => VoteColumn::RecordDate,
+            Self::ShareholdersOnRecord => VoteColumn::ShareholdersOnRecord,
+            Self::ResolutionsPassed => VoteColumn::ResolutionsPassed,
+            Self::PromotersInPerson => VoteColumn::PromotersInPerson,
+            Self::PublicInPerson => VoteColumn::PublicInPerson,
+            Self::PromotersVc => VoteColumn::PromotersVc,
+            Self::PublicVc => VoteColumn::PublicVc,
+            Self::ScrutinizerName => VoteColumn::Scrutinizer,
+            Self::ScrutinizerFirm => VoteColumn::ScrutinizerFirm,
+            Self::ScrutinizerQualification => VoteColumn::ScrutinizerQualification,
+            Self::ScrutinizerMembership => VoteColumn::ScrutinizerMembership,
+            Self::ScrutinizerAppointed => VoteColumn::BoardMeetingDate,
+            Self::ReportDate => VoteColumn::ReportIssuanceDate,
         }
     }
 
-    pub fn display(self, item: &ItemModel) -> String {
+    pub fn display(self, item: &VoteModel) -> String {
         match self {
-            Self::Symbol => opt_str(&item.voting_symbol),
-            Self::ScripCode => opt_str(&item.voting_scrip_code),
-            Self::MseiSymbol => opt_str(&item.voting_msei_symbol),
-            Self::Isin => opt_str(&item.voting_isin),
-            Self::CompanyName => opt_str(&item.voting_company_name),
-            Self::TypeOfMeeting => opt_str(&item.voting_type_of_meeting),
-            Self::DateOfMeeting => opt_date(item.voting_date_of_meeting),
-            Self::StartTime => opt_str(&item.voting_start_time),
-            Self::EndTime => opt_str(&item.voting_end_time),
-            Self::DateOfRecord => opt_date(item.voting_record_date),
-            Self::ShareholdersOnRecord => opt_str(&item.voting_shareholders_on_record),
-            Self::ResolutionsPassed => opt_str(&item.voting_resolutions_passed),
-            Self::PromotersInPerson => opt_str(&item.voting_promoters_in_person),
-            Self::PublicInPerson => opt_str(&item.voting_public_in_person),
-            Self::PromotersVc => opt_str(&item.voting_promoters_vc),
-            Self::PublicVc => opt_str(&item.voting_public_vc),
-            Self::ScrutinizerName => opt_str(&item.voting_scrutinizer),
-            Self::ScrutinizerFirm => opt_str(&item.voting_scrutinizer_firm),
-            Self::ScrutinizerQualification => opt_str(&item.voting_scrutinizer_qualification),
-            Self::ScrutinizerMembership => opt_str(&item.voting_scrutinizer_membership),
-            Self::ScrutinizerAppointed => opt_date(item.voting_board_meeting_date),
-            Self::ReportDate => opt_date(item.voting_report_issuance_date),
+            Self::Symbol => opt_str(&item.symbol),
+            Self::ScripCode => opt_str(&item.scrip_code),
+            Self::MseiSymbol => opt_str(&item.msei_symbol),
+            Self::Isin => opt_str(&item.isin),
+            Self::CompanyName => opt_str(&item.company_name),
+            Self::TypeOfMeeting => opt_str(&item.type_of_meeting),
+            Self::DateOfMeeting => opt_date(item.date_of_meeting),
+            Self::StartTime => opt_str(&item.start_time),
+            Self::EndTime => opt_str(&item.end_time),
+            Self::DateOfRecord => opt_date(item.record_date),
+            Self::ShareholdersOnRecord => opt_str(&item.shareholders_on_record),
+            Self::ResolutionsPassed => opt_str(&item.resolutions_passed),
+            Self::PromotersInPerson => opt_str(&item.promoters_in_person),
+            Self::PublicInPerson => opt_str(&item.public_in_person),
+            Self::PromotersVc => opt_str(&item.promoters_vc),
+            Self::PublicVc => opt_str(&item.public_vc),
+            Self::ScrutinizerName => opt_str(&item.scrutinizer),
+            Self::ScrutinizerFirm => opt_str(&item.scrutinizer_firm),
+            Self::ScrutinizerQualification => opt_str(&item.scrutinizer_qualification),
+            Self::ScrutinizerMembership => opt_str(&item.scrutinizer_membership),
+            Self::ScrutinizerAppointed => opt_date(item.board_meeting_date),
+            Self::ReportDate => opt_date(item.report_issuance_date),
         }
     }
 }

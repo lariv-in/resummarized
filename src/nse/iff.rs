@@ -2,7 +2,9 @@
 
 use chrono::NaiveDate;
 
-use super::entities::item::{ActiveModel as ItemAM, Column as ItemColumn, Model as ItemModel};
+use super::entities::integrated_filing_financials::{
+    ActiveModel as IffAM, Column as IffColumn, Model as IffModel,
+};
 use super::xbrl::{
     first_text_facts, opt_date, opt_str, set_opt, set_opt_date, take_clean, take_date,
 };
@@ -34,25 +36,25 @@ impl IffFacts {
         self.nse_symbol.is_some() || self.company_name.is_some() || self.isin.is_some()
     }
 
-    pub fn apply(&self, am: &mut ItemAM) {
-        set_opt(&mut am.iff_nse_symbol, &self.nse_symbol);
-        set_opt(&mut am.iff_scrip_code, &self.scrip_code);
-        set_opt(&mut am.iff_msei_symbol, &self.msei_symbol);
-        set_opt(&mut am.iff_isin, &self.isin);
-        set_opt(&mut am.iff_company_name, &self.company_name);
-        set_opt(&mut am.iff_type_of_company, &self.type_of_company);
-        set_opt(&mut am.iff_class_of_security, &self.class_of_security);
-        set_opt_date(&mut am.iff_fy_start, self.fy_start);
-        set_opt_date(&mut am.iff_fy_end, self.fy_end);
-        set_opt(&mut am.iff_reporting_period, &self.reporting_period);
-        set_opt(&mut am.iff_reporting_quarter, &self.reporting_quarter);
-        set_opt_date(&mut am.iff_period_start, self.period_start);
-        set_opt_date(&mut am.iff_period_end, self.period_end);
-        set_opt(&mut am.iff_audited, &self.audited);
-        set_opt(&mut am.iff_nature, &self.nature);
-        set_opt_date(&mut am.iff_board_meeting, self.board_meeting);
-        set_opt(&mut am.iff_revenue, &self.revenue);
-        set_opt(&mut am.iff_profit, &self.profit);
+    pub fn apply(&self, am: &mut IffAM) {
+        set_opt(&mut am.nse_symbol, &self.nse_symbol);
+        set_opt(&mut am.scrip_code, &self.scrip_code);
+        set_opt(&mut am.msei_symbol, &self.msei_symbol);
+        set_opt(&mut am.isin, &self.isin);
+        set_opt(&mut am.company_name, &self.company_name);
+        set_opt(&mut am.type_of_company, &self.type_of_company);
+        set_opt(&mut am.class_of_security, &self.class_of_security);
+        set_opt_date(&mut am.fy_start, self.fy_start);
+        set_opt_date(&mut am.fy_end, self.fy_end);
+        set_opt(&mut am.reporting_period, &self.reporting_period);
+        set_opt(&mut am.reporting_quarter, &self.reporting_quarter);
+        set_opt_date(&mut am.period_start, self.period_start);
+        set_opt_date(&mut am.period_end, self.period_end);
+        set_opt(&mut am.audited, &self.audited);
+        set_opt(&mut am.nature, &self.nature);
+        set_opt_date(&mut am.board_meeting, self.board_meeting);
+        set_opt(&mut am.revenue, &self.revenue);
+        set_opt(&mut am.profit, &self.profit);
     }
 }
 
@@ -178,49 +180,49 @@ impl IffField {
         }
     }
 
-    pub fn column(self) -> ItemColumn {
+    pub fn column(self) -> IffColumn {
         match self {
-            Self::NseSymbol => ItemColumn::IffNseSymbol,
-            Self::ScripCode => ItemColumn::IffScripCode,
-            Self::MseiSymbol => ItemColumn::IffMseiSymbol,
-            Self::Isin => ItemColumn::IffIsin,
-            Self::CompanyName => ItemColumn::IffCompanyName,
-            Self::TypeOfCompany => ItemColumn::IffTypeOfCompany,
-            Self::ClassOfSecurity => ItemColumn::IffClassOfSecurity,
-            Self::FyStart => ItemColumn::IffFyStart,
-            Self::FyEnd => ItemColumn::IffFyEnd,
-            Self::ReportingPeriod => ItemColumn::IffReportingPeriod,
-            Self::ReportingQuarter => ItemColumn::IffReportingQuarter,
-            Self::PeriodStart => ItemColumn::IffPeriodStart,
-            Self::PeriodEnd => ItemColumn::IffPeriodEnd,
-            Self::Audited => ItemColumn::IffAudited,
-            Self::Nature => ItemColumn::IffNature,
-            Self::BoardMeeting => ItemColumn::IffBoardMeeting,
-            Self::Revenue => ItemColumn::IffRevenue,
-            Self::Profit => ItemColumn::IffProfit,
+            Self::NseSymbol => IffColumn::NseSymbol,
+            Self::ScripCode => IffColumn::ScripCode,
+            Self::MseiSymbol => IffColumn::MseiSymbol,
+            Self::Isin => IffColumn::Isin,
+            Self::CompanyName => IffColumn::CompanyName,
+            Self::TypeOfCompany => IffColumn::TypeOfCompany,
+            Self::ClassOfSecurity => IffColumn::ClassOfSecurity,
+            Self::FyStart => IffColumn::FyStart,
+            Self::FyEnd => IffColumn::FyEnd,
+            Self::ReportingPeriod => IffColumn::ReportingPeriod,
+            Self::ReportingQuarter => IffColumn::ReportingQuarter,
+            Self::PeriodStart => IffColumn::PeriodStart,
+            Self::PeriodEnd => IffColumn::PeriodEnd,
+            Self::Audited => IffColumn::Audited,
+            Self::Nature => IffColumn::Nature,
+            Self::BoardMeeting => IffColumn::BoardMeeting,
+            Self::Revenue => IffColumn::Revenue,
+            Self::Profit => IffColumn::Profit,
         }
     }
 
-    pub fn display(self, item: &ItemModel) -> String {
+    pub fn display(self, item: &IffModel) -> String {
         match self {
-            Self::NseSymbol => opt_str(&item.iff_nse_symbol),
-            Self::ScripCode => opt_str(&item.iff_scrip_code),
-            Self::MseiSymbol => opt_str(&item.iff_msei_symbol),
-            Self::Isin => opt_str(&item.iff_isin),
-            Self::CompanyName => opt_str(&item.iff_company_name),
-            Self::TypeOfCompany => opt_str(&item.iff_type_of_company),
-            Self::ClassOfSecurity => opt_str(&item.iff_class_of_security),
-            Self::FyStart => opt_date(item.iff_fy_start),
-            Self::FyEnd => opt_date(item.iff_fy_end),
-            Self::ReportingPeriod => opt_str(&item.iff_reporting_period),
-            Self::ReportingQuarter => opt_str(&item.iff_reporting_quarter),
-            Self::PeriodStart => opt_date(item.iff_period_start),
-            Self::PeriodEnd => opt_date(item.iff_period_end),
-            Self::Audited => opt_str(&item.iff_audited),
-            Self::Nature => opt_str(&item.iff_nature),
-            Self::BoardMeeting => opt_date(item.iff_board_meeting),
-            Self::Revenue => opt_str(&item.iff_revenue),
-            Self::Profit => opt_str(&item.iff_profit),
+            Self::NseSymbol => opt_str(&item.nse_symbol),
+            Self::ScripCode => opt_str(&item.scrip_code),
+            Self::MseiSymbol => opt_str(&item.msei_symbol),
+            Self::Isin => opt_str(&item.isin),
+            Self::CompanyName => opt_str(&item.company_name),
+            Self::TypeOfCompany => opt_str(&item.type_of_company),
+            Self::ClassOfSecurity => opt_str(&item.class_of_security),
+            Self::FyStart => opt_date(item.fy_start),
+            Self::FyEnd => opt_date(item.fy_end),
+            Self::ReportingPeriod => opt_str(&item.reporting_period),
+            Self::ReportingQuarter => opt_str(&item.reporting_quarter),
+            Self::PeriodStart => opt_date(item.period_start),
+            Self::PeriodEnd => opt_date(item.period_end),
+            Self::Audited => opt_str(&item.audited),
+            Self::Nature => opt_str(&item.nature),
+            Self::BoardMeeting => opt_date(item.board_meeting),
+            Self::Revenue => opt_str(&item.revenue),
+            Self::Profit => opt_str(&item.profit),
         }
     }
 }

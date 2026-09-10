@@ -2,7 +2,9 @@
 
 use chrono::NaiveDate;
 
-use super::entities::item::{ActiveModel as ItemAM, Column as ItemColumn, Model as ItemModel};
+use super::entities::financial_results::{
+    ActiveModel as FrAM, Column as FrColumn, Model as FrModel,
+};
 use super::xbrl::{
     first_text_facts, opt_date, opt_str, set_opt, set_opt_date, take_clean, take_date,
 };
@@ -31,22 +33,22 @@ impl FrFacts {
         self.nse_symbol.is_some() || self.company_name.is_some()
     }
 
-    pub fn apply(&self, am: &mut ItemAM) {
-        set_opt(&mut am.fr_nse_symbol, &self.nse_symbol);
-        set_opt(&mut am.fr_scrip_code, &self.scrip_code);
-        set_opt(&mut am.fr_msei_symbol, &self.msei_symbol);
-        set_opt(&mut am.fr_company_name, &self.company_name);
-        set_opt(&mut am.fr_class_of_security, &self.class_of_security);
-        set_opt_date(&mut am.fr_fy_start, self.fy_start);
-        set_opt_date(&mut am.fr_fy_end, self.fy_end);
-        set_opt(&mut am.fr_reporting_quarter, &self.reporting_quarter);
-        set_opt_date(&mut am.fr_period_start, self.period_start);
-        set_opt_date(&mut am.fr_period_end, self.period_end);
-        set_opt(&mut am.fr_audited, &self.audited);
-        set_opt(&mut am.fr_nature, &self.nature);
-        set_opt_date(&mut am.fr_board_meeting, self.board_meeting);
-        set_opt(&mut am.fr_revenue, &self.revenue);
-        set_opt(&mut am.fr_profit, &self.profit);
+    pub fn apply(&self, am: &mut FrAM) {
+        set_opt(&mut am.nse_symbol, &self.nse_symbol);
+        set_opt(&mut am.scrip_code, &self.scrip_code);
+        set_opt(&mut am.msei_symbol, &self.msei_symbol);
+        set_opt(&mut am.company_name, &self.company_name);
+        set_opt(&mut am.class_of_security, &self.class_of_security);
+        set_opt_date(&mut am.fy_start, self.fy_start);
+        set_opt_date(&mut am.fy_end, self.fy_end);
+        set_opt(&mut am.reporting_quarter, &self.reporting_quarter);
+        set_opt_date(&mut am.period_start, self.period_start);
+        set_opt_date(&mut am.period_end, self.period_end);
+        set_opt(&mut am.audited, &self.audited);
+        set_opt(&mut am.nature, &self.nature);
+        set_opt_date(&mut am.board_meeting, self.board_meeting);
+        set_opt(&mut am.revenue, &self.revenue);
+        set_opt(&mut am.profit, &self.profit);
     }
 }
 
@@ -157,43 +159,43 @@ impl FrField {
         }
     }
 
-    pub fn column(self) -> ItemColumn {
+    pub fn column(self) -> FrColumn {
         match self {
-            Self::NseSymbol => ItemColumn::FrNseSymbol,
-            Self::ScripCode => ItemColumn::FrScripCode,
-            Self::MseiSymbol => ItemColumn::FrMseiSymbol,
-            Self::CompanyName => ItemColumn::FrCompanyName,
-            Self::ClassOfSecurity => ItemColumn::FrClassOfSecurity,
-            Self::FyStart => ItemColumn::FrFyStart,
-            Self::FyEnd => ItemColumn::FrFyEnd,
-            Self::ReportingQuarter => ItemColumn::FrReportingQuarter,
-            Self::PeriodStart => ItemColumn::FrPeriodStart,
-            Self::PeriodEnd => ItemColumn::FrPeriodEnd,
-            Self::Audited => ItemColumn::FrAudited,
-            Self::Nature => ItemColumn::FrNature,
-            Self::BoardMeeting => ItemColumn::FrBoardMeeting,
-            Self::Revenue => ItemColumn::FrRevenue,
-            Self::Profit => ItemColumn::FrProfit,
+            Self::NseSymbol => FrColumn::NseSymbol,
+            Self::ScripCode => FrColumn::ScripCode,
+            Self::MseiSymbol => FrColumn::MseiSymbol,
+            Self::CompanyName => FrColumn::CompanyName,
+            Self::ClassOfSecurity => FrColumn::ClassOfSecurity,
+            Self::FyStart => FrColumn::FyStart,
+            Self::FyEnd => FrColumn::FyEnd,
+            Self::ReportingQuarter => FrColumn::ReportingQuarter,
+            Self::PeriodStart => FrColumn::PeriodStart,
+            Self::PeriodEnd => FrColumn::PeriodEnd,
+            Self::Audited => FrColumn::Audited,
+            Self::Nature => FrColumn::Nature,
+            Self::BoardMeeting => FrColumn::BoardMeeting,
+            Self::Revenue => FrColumn::Revenue,
+            Self::Profit => FrColumn::Profit,
         }
     }
 
-    pub fn display(self, item: &ItemModel) -> String {
+    pub fn display(self, item: &FrModel) -> String {
         match self {
-            Self::NseSymbol => opt_str(&item.fr_nse_symbol),
-            Self::ScripCode => opt_str(&item.fr_scrip_code),
-            Self::MseiSymbol => opt_str(&item.fr_msei_symbol),
-            Self::CompanyName => opt_str(&item.fr_company_name),
-            Self::ClassOfSecurity => opt_str(&item.fr_class_of_security),
-            Self::FyStart => opt_date(item.fr_fy_start),
-            Self::FyEnd => opt_date(item.fr_fy_end),
-            Self::ReportingQuarter => opt_str(&item.fr_reporting_quarter),
-            Self::PeriodStart => opt_date(item.fr_period_start),
-            Self::PeriodEnd => opt_date(item.fr_period_end),
-            Self::Audited => opt_str(&item.fr_audited),
-            Self::Nature => opt_str(&item.fr_nature),
-            Self::BoardMeeting => opt_date(item.fr_board_meeting),
-            Self::Revenue => opt_str(&item.fr_revenue),
-            Self::Profit => opt_str(&item.fr_profit),
+            Self::NseSymbol => opt_str(&item.nse_symbol),
+            Self::ScripCode => opt_str(&item.scrip_code),
+            Self::MseiSymbol => opt_str(&item.msei_symbol),
+            Self::CompanyName => opt_str(&item.company_name),
+            Self::ClassOfSecurity => opt_str(&item.class_of_security),
+            Self::FyStart => opt_date(item.fy_start),
+            Self::FyEnd => opt_date(item.fy_end),
+            Self::ReportingQuarter => opt_str(&item.reporting_quarter),
+            Self::PeriodStart => opt_date(item.period_start),
+            Self::PeriodEnd => opt_date(item.period_end),
+            Self::Audited => opt_str(&item.audited),
+            Self::Nature => opt_str(&item.nature),
+            Self::BoardMeeting => opt_date(item.board_meeting),
+            Self::Revenue => opt_str(&item.revenue),
+            Self::Profit => opt_str(&item.profit),
         }
     }
 }

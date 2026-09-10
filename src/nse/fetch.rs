@@ -15,6 +15,7 @@ use super::{
         item::{self, ActiveModel as ItemAM, Entity as ItemEntity, Model as ItemModel},
         status::{ActiveModel as StatusAM, Entity as StatusEntity},
     },
+    extras::{self, LinkedFacts},
     feeds::NseFeedKind,
     fr::{self, parse_fr_xbrl},
     ic::{self, parse_ic_xbrl},
@@ -184,9 +185,12 @@ async fn fetch_and_upsert(
         .filter(item::Column::FeedKind.eq(kind.slug()))
         .all(&state.db)
         .await?;
+    let existing_ids: Vec<i64> = existing_rows.iter().map(|row| row.id).collect();
+    let extras = extras::load_map(&state.db, kind, &existing_ids).await?;
     for row in &existing_rows {
         let parsed = parse_nse_description(&row.description);
-        let xml_facts = if needs_linked_facts(kind, row) {
+        let extra = extras.get(&row.id);
+        let xml_facts = if extras::needs_linked_facts(kind, extra) {
             fetch_linked_for_kind(&state.client, kind, &row.link).await
         } else {
             None
@@ -194,15 +198,13 @@ async fn fetch_and_upsert(
         if !parsed.any_extracted() && xml_facts.is_none() {
             continue;
         }
-        let mut am: ItemAM = row.clone().into();
         if parsed.any_extracted() {
-            parsed.apply_extracted(&mut am);
+            let mut am: ItemAM = row.clone().into();
+            am.description = Set(parsed.remainder.clone());
+            am.updated_at = Set(Some(now));
+            am.update(&state.db).await?;
         }
-        if let Some(facts) = xml_facts {
-            facts.apply(&mut am);
-        }
-        am.updated_at = Set(Some(now));
-        am.update(&state.db).await?;
+        extras::upsert(&state.db, kind, row.id, &parsed, xml_facts.as_ref()).await?;
     }
 
     let mut existing_by_hash: HashMap<String, ItemModel> = existing_rows
@@ -232,7 +234,7 @@ async fn fetch_and_upsert(
             continue;
         }
         let xml_facts = fetch_linked_for_kind(&state.client, kind, &entry.link).await;
-        let mut am = ItemAM {
+        let am = ItemAM {
             feed_kind: Set(kind.slug().to_string()),
             title: Set(entry.title),
             link: Set(entry.link),
@@ -243,11 +245,7 @@ async fn fetch_and_upsert(
             updated_at: Set(Some(now)),
             ..Default::default()
         };
-        parsed.apply_extracted(&mut am);
-        if let Some(facts) = xml_facts {
-            facts.apply(&mut am);
-        }
-        ItemEntity::insert(am)
+        let insert = ItemEntity::insert(am)
             .on_conflict(
                 OnConflict::column(item::Column::ContentHash)
                     .do_nothing()
@@ -255,61 +253,20 @@ async fn fetch_and_upsert(
             )
             .exec(&state.db)
             .await?;
-        inserted += 1;
+        if insert.last_insert_id != 0 {
+            extras::upsert(
+                &state.db,
+                kind,
+                insert.last_insert_id,
+                &parsed,
+                xml_facts.as_ref(),
+            )
+            .await?;
+            inserted += 1;
+        }
     }
 
     Ok((inserted, last_build))
-}
-
-enum LinkedFacts {
-    Brsr(brsr::BrsrFacts),
-    Vote(voting::VoteFacts),
-    Uhp(uhp::UhpFacts),
-    Sod(sod::SodFacts),
-    Shp(shp::ShpFacts),
-    Scr(scr::ScrFacts),
-    Rpt(rpt::RptFacts),
-    Ic(ic::IcFacts),
-    It(it::ItFacts),
-    Iff(iff::IffFacts),
-    Fr(fr::FrFacts),
-}
-
-impl LinkedFacts {
-    fn apply(&self, am: &mut ItemAM) {
-        match self {
-            Self::Brsr(f) => f.apply(am),
-            Self::Vote(f) => f.apply(am),
-            Self::Uhp(f) => f.apply(am),
-            Self::Sod(f) => f.apply(am),
-            Self::Shp(f) => f.apply(am),
-            Self::Scr(f) => f.apply(am),
-            Self::Rpt(f) => f.apply(am),
-            Self::Ic(f) => f.apply(am),
-            Self::It(f) => f.apply(am),
-            Self::Iff(f) => f.apply(am),
-            Self::Fr(f) => f.apply(am),
-        }
-    }
-}
-
-fn needs_linked_facts(kind: NseFeedKind, row: &ItemModel) -> bool {
-    match kind {
-        NseFeedKind::Brsr => row.brsr_nse_symbol.is_none(),
-        NseFeedKind::VotingResults => row.voting_symbol.is_none(),
-        NseFeedKind::UnitholdingPatterns => row.uhp_nse_symbol.is_none(),
-        NseFeedKind::StatementOfDeviation => {
-            row.sod_nse_symbol.is_none() || row.sod_objects.is_none()
-        }
-        NseFeedKind::ShareholdingPattern => row.shp_nse_symbol.is_none(),
-        NseFeedKind::SecretarialCompliance => row.scr_nse_symbol.is_none(),
-        NseFeedKind::RelatedPartyTransactions => row.rpt_nse_symbol.is_none(),
-        NseFeedKind::InvestorComplaints => row.ic_nse_symbol.is_none(),
-        NseFeedKind::InsiderTrading => row.it_nse_symbol.is_none(),
-        NseFeedKind::IntegratedFilingFinancials => row.iff_nse_symbol.is_none(),
-        NseFeedKind::FinancialResults => row.fr_nse_symbol.is_none(),
-        _ => false,
-    }
 }
 
 async fn fetch_linked_for_kind(

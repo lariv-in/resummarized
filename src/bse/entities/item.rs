@@ -1,4 +1,4 @@
-use chrono::{DateTime, NaiveDate, Utc};
+use chrono::{DateTime, Utc};
 use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -17,47 +17,69 @@ pub struct Model {
     #[sea_orm(column_type = "Text")]
     pub description: String,
     pub pub_date: Option<DateTime<Utc>>,
-    #[sea_orm(column_type = "Text", nullable)]
-    pub scripcode: Option<String>,
-    pub as_on_date: Option<NaiveDate>,
-    pub meeting_date: Option<NaiveDate>,
-    #[sea_orm(column_type = "Text", nullable)]
-    pub meeting_type: Option<String>,
-    #[sea_orm(column_type = "Text", nullable)]
-    pub purpose: Option<String>,
-    #[sea_orm(column_type = "Text", nullable)]
-    pub segment: Option<String>,
-    pub rd_date: Option<NaiveDate>,
-    pub bc_start_date: Option<NaiveDate>,
-    pub bc_end_date: Option<NaiveDate>,
-    pub nd_start_date: Option<NaiveDate>,
-    pub nd_end_date: Option<NaiveDate>,
-    pub actual_payment_date: Option<NaiveDate>,
-    #[sea_orm(column_type = "Text", nullable)]
-    pub type_of_security: Option<String>,
-    #[sea_orm(column_type = "Text", nullable)]
-    pub audited_unaudited: Option<String>,
-    #[sea_orm(column_type = "Text", nullable)]
-    pub standalone_consolidated: Option<String>,
-    pub period_start_date: Option<NaiveDate>,
-    pub period_end_date: Option<NaiveDate>,
-    #[sea_orm(column_type = "Text", nullable)]
-    pub ind_as: Option<String>,
-    #[sea_orm(column_type = "Text", nullable)]
-    pub promoter_and_group: Option<String>,
-    #[sea_orm(column_type = "Text", nullable)]
-    pub public_val: Option<String>,
-    #[sea_orm(column_type = "Text", nullable)]
-    pub emptr: Option<String>,
-    #[sea_orm(column_type = "Text", nullable)]
-    pub status: Option<String>,
-    pub submission_date: Option<NaiveDate>,
-    pub revised_filing_date: Option<NaiveDate>,
     #[sea_orm(unique, column_type = "Text")]
     pub content_hash: String,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
-pub enum Relation {}
+pub enum Relation {
+    #[sea_orm(has_one = "super::announcements::Entity")]
+    Announcements,
+    #[sea_orm(has_one = "super::annual_reports::Entity")]
+    AnnualReports,
+    #[sea_orm(has_one = "super::board_meetings::Entity")]
+    BoardMeetings,
+    #[sea_orm(has_one = "super::corporate_actions::Entity")]
+    CorporateActions,
+    #[sea_orm(has_one = "super::financial_results::Entity")]
+    FinancialResults,
+    #[sea_orm(has_one = "super::insider_trading::Entity")]
+    InsiderTrading,
+    #[sea_orm(has_one = "super::shareholding_pattern::Entity")]
+    ShareholdingPattern,
+    #[sea_orm(has_one = "super::voting_results::Entity")]
+    VotingResults,
+}
+
+impl Related<super::announcements::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Announcements.def()
+    }
+}
+impl Related<super::annual_reports::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::AnnualReports.def()
+    }
+}
+impl Related<super::board_meetings::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::BoardMeetings.def()
+    }
+}
+impl Related<super::corporate_actions::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::CorporateActions.def()
+    }
+}
+impl Related<super::financial_results::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::FinancialResults.def()
+    }
+}
+impl Related<super::insider_trading::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::InsiderTrading.def()
+    }
+}
+impl Related<super::shareholding_pattern::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::ShareholdingPattern.def()
+    }
+}
+impl Related<super::voting_results::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::VotingResults.def()
+    }
+}
 
 impl ActiveModelBehavior for ActiveModel {}

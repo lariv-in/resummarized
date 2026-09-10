@@ -2,9 +2,6 @@
 
 use chrono::{DateTime, NaiveDate, Utc};
 use lariv_rs::datetime::{DatetimeLabel, format_date};
-use sea_orm::ActiveValue::Set;
-
-use super::entities::item::{ActiveModel as ItemAM, Column as ItemColumn, Model as ItemModel};
 
 pub use crate::dates::{parse_date as parse_nse_date, parse_datetime as parse_nse_datetime};
 
@@ -73,7 +70,6 @@ macro_rules! nse_desc_fields {
             label: $label:expr,
             nse_key: $nse:expr,
             model: $model_field:ident,
-            column: $col:ident,
             kind: $kind:ident,
         }
     ),* $(,)?) => {
@@ -113,15 +109,9 @@ macro_rules! nse_desc_fields {
                 None
             }
 
-            pub fn column(self) -> ItemColumn {
+            pub fn display(self, fields: &NseDescriptionFields, tz: &str) -> String {
                 match self {
-                    $(Self::$variant => ItemColumn::$col,)*
-                }
-            }
-
-            pub fn display(self, item: &ItemModel, tz: &str) -> String {
-                match self {
-                    $(Self::$variant => display_kind!($kind, item.$model_field, tz),)*
+                    $(Self::$variant => display_kind!($kind, fields.$model_field, tz),)*
                 }
             }
 
@@ -150,15 +140,6 @@ macro_rules! nse_desc_fields {
                     .or(self.original_submission_date)
                     .or_else(|| self.as_on_date.and_then(crate::dates::date_start_ist))
             }
-
-            pub fn apply_extracted(&self, am: &mut ItemAM) {
-                am.description = Set(self.remainder.clone());
-                $(
-                    if let Some(v) = &self.$model_field {
-                        am.$model_field = Set(Some(v.clone()));
-                    }
-                )*
-            }
         }
     };
 }
@@ -169,7 +150,6 @@ nse_desc_fields! {
         label: "Subject",
         nse_key: "SUBJECT",
         model: subject,
-        column: Subject,
         kind: text,
     },
     AsOnDate => {
@@ -177,7 +157,6 @@ nse_desc_fields! {
         label: "As on date",
         nse_key: "AS ON DATE",
         model: as_on_date,
-        column: AsOnDate,
         kind: date,
     },
     OriginalSubmissionDate => {
@@ -185,7 +164,6 @@ nse_desc_fields! {
         label: "Original submission date",
         nse_key: "ORIGINAL SUBMISSION DATE",
         model: original_submission_date,
-        column: OriginalSubmissionDate,
         kind: datetime,
     },
     Series => {
@@ -193,7 +171,6 @@ nse_desc_fields! {
         label: "Series",
         nse_key: "SERIES",
         model: series,
-        column: Series,
         kind: text,
     },
     Purpose => {
@@ -201,7 +178,6 @@ nse_desc_fields! {
         label: "Purpose",
         nse_key: "PURPOSE",
         model: purpose,
-        column: Purpose,
         kind: text,
     },
     FaceValue => {
@@ -209,7 +185,6 @@ nse_desc_fields! {
         label: "Face value",
         nse_key: "FACE VALUE",
         model: face_value,
-        column: FaceValue,
         kind: text,
     },
     RecordDate => {
@@ -217,7 +192,6 @@ nse_desc_fields! {
         label: "Record date",
         nse_key: "RECORD DATE",
         model: record_date,
-        column: RecordDate,
         kind: date,
     },
     BookClosureStartDate => {
@@ -225,7 +199,6 @@ nse_desc_fields! {
         label: "Book closure start date",
         nse_key: "BOOK CLOSURE START DATE",
         model: book_closure_start_date,
-        column: BookClosureStartDate,
         kind: date,
     },
     BookClosureEndDate => {
@@ -233,7 +206,6 @@ nse_desc_fields! {
         label: "Book closure end date",
         nse_key: "BOOK CLOSURE END DATE",
         model: book_closure_end_date,
-        column: BookClosureEndDate,
         kind: date,
     },
     RelatingTo => {
@@ -241,7 +213,6 @@ nse_desc_fields! {
         label: "Relating to",
         nse_key: "RELATING TO",
         model: relating_to,
-        column: RelatingTo,
         kind: text,
     },
     AuditedUnaudited => {
@@ -249,7 +220,6 @@ nse_desc_fields! {
         label: "Audited/Unaudited",
         nse_key: "AUDITED/UNAUDITED",
         model: audited_unaudited,
-        column: AuditedUnaudited,
         kind: text,
     },
     Cumulative => {
@@ -257,7 +227,6 @@ nse_desc_fields! {
         label: "Cumulative/Non-cumulative",
         nse_key: "CUMULATIVE/NON-CUMULATIVE",
         model: cumulative,
-        column: Cumulative,
         kind: text,
     },
     Consolidated => {
@@ -265,7 +234,6 @@ nse_desc_fields! {
         label: "Consolidated/Non-consolidated",
         nse_key: "CONSOLIDATED/NON-CONSOLIDATED",
         model: consolidated,
-        column: Consolidated,
         kind: text,
     },
     IndAs => {
@@ -273,7 +241,6 @@ nse_desc_fields! {
         label: "Ind AS",
         nse_key: "IND AS/ NON IND AS",
         model: ind_as,
-        column: IndAs,
         kind: text,
     },
     Period => {
@@ -281,7 +248,6 @@ nse_desc_fields! {
         label: "Period",
         nse_key: "PERIOD",
         model: period,
-        column: Period,
         kind: text,
     },
     PeriodEnded => {
@@ -289,7 +255,6 @@ nse_desc_fields! {
         label: "Period ended",
         nse_key: "PERIOD ENDED",
         model: period_ended,
-        column: PeriodEnded,
         kind: date,
     },
     ForQuarterEnding => {
@@ -297,7 +262,6 @@ nse_desc_fields! {
         label: "For quarter ending",
         nse_key: "FOR QUARTER ENDING",
         model: for_quarter_ending,
-        column: ForQuarterEnding,
         kind: date,
     },
     EncumberedPromoterNames => {
@@ -305,7 +269,6 @@ nse_desc_fields! {
         label: "Encumbered promoter(s)",
         nse_key: "NAME OF THE PROMOTER(S) / PACS WHOSE SHARES HAVE BEEN ENCUMBERED",
         model: encumbered_promoter_names,
-        column: EncumberedPromoterNames,
         kind: text,
     },
     PeriodEndDate => {
@@ -313,7 +276,6 @@ nse_desc_fields! {
         label: "Period end date",
         nse_key: "PERIOD END DATE",
         model: period_end_date,
-        column: PeriodEndDate,
         kind: date,
     },
     AcquirerNames => {
@@ -321,7 +283,6 @@ nse_desc_fields! {
         label: "Acquirer / PAC",
         nse_key: "NAME(S)OF THE ACQUIRER AND ITS(PAC)",
         model: acquirer_names,
-        column: AcquirerNames,
         kind: text,
     },
     PromoterNames => {
@@ -329,7 +290,6 @@ nse_desc_fields! {
         label: "Promoter(s) / PAC",
         nse_key: "NAME OF PROMOTER(S) OR PACS WITH HIM",
         model: promoter_names,
-        column: PromoterNames,
         kind: text,
     },
     FinancialYear => {
@@ -337,7 +297,6 @@ nse_desc_fields! {
         label: "Financial year",
         nse_key: "FINANCIAL YEAR",
         model: financial_year,
-        column: FinancialYear,
         kind: text,
     },
     SubmissionType => {
@@ -345,7 +304,6 @@ nse_desc_fields! {
         label: "Submission type",
         nse_key: "SUBMISSION TYPE",
         model: submission_type,
-        column: SubmissionType,
         kind: text,
     },
     MeetingDate => {
@@ -353,7 +311,6 @@ nse_desc_fields! {
         label: "Meeting date",
         nse_key: "MEETING DATE",
         model: meeting_date,
-        column: MeetingDate,
         kind: date,
     },
     Remarks => {
@@ -361,7 +318,6 @@ nse_desc_fields! {
         label: "Remarks",
         nse_key: "REMARKS",
         model: remarks,
-        column: Remarks,
         kind: text,
     },
 }

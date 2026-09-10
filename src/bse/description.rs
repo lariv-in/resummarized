@@ -3,9 +3,6 @@
 use chrono::{DateTime, NaiveDate, Utc};
 #[allow(unused_imports)]
 use lariv_rs::datetime::{DatetimeLabel, format_date};
-use sea_orm::ActiveValue::Set;
-
-use super::entities::item::{ActiveModel as ItemAM, Column as ItemColumn, Model as ItemModel};
 
 pub use crate::dates::{parse_date as parse_bse_date, parse_datetime as parse_bse_datetime};
 
@@ -81,7 +78,6 @@ macro_rules! bse_desc_fields {
             label: $label:expr,
             bse_key: $bse:expr,
             model: $model_field:ident,
-            column: $col:ident,
             kind: $kind:ident,
         }
     ),* $(,)?) => {
@@ -121,15 +117,9 @@ macro_rules! bse_desc_fields {
                 None
             }
 
-            pub fn column(self) -> ItemColumn {
+            pub fn display(self, fields: &BseDescriptionFields, tz: &str) -> String {
                 match self {
-                    $(Self::$variant => ItemColumn::$col,)*
-                }
-            }
-
-            pub fn display(self, item: &ItemModel, tz: &str) -> String {
-                match self {
-                    $(Self::$variant => display_kind!($kind, item.$model_field, tz),)*
+                    $(Self::$variant => display_kind!($kind, fields.$model_field, tz),)*
                 }
             }
 
@@ -158,15 +148,6 @@ macro_rules! bse_desc_fields {
                     .or_else(|| self.as_on_date.and_then(crate::dates::date_start_ist))
                     .or_else(|| self.submission_date.and_then(crate::dates::date_start_ist))
             }
-
-            pub fn apply_extracted(&self, am: &mut ItemAM) {
-                am.description = Set(self.remainder.clone());
-                $(
-                    if let Some(v) = &self.$model_field {
-                        am.$model_field = Set(Some(v.clone()));
-                    }
-                )*
-            }
         }
     };
 }
@@ -177,7 +158,6 @@ bse_desc_fields! {
         label: "Scripcode",
         bse_key: "SCRIPCODE",
         model: scripcode,
-        column: Scripcode,
         kind: text,
     },
     AsOnDate => {
@@ -185,7 +165,6 @@ bse_desc_fields! {
         label: "As on date",
         bse_key: "AS ON DATE",
         model: as_on_date,
-        column: AsOnDate,
         kind: date,
     },
     MeetingDate => {
@@ -193,7 +172,6 @@ bse_desc_fields! {
         label: "Meeting date",
         bse_key: "MEETING DATE",
         model: meeting_date,
-        column: MeetingDate,
         kind: date,
     },
     MeetingType => {
@@ -201,7 +179,6 @@ bse_desc_fields! {
         label: "Meeting type",
         bse_key: "MEETING TYPE",
         model: meeting_type,
-        column: MeetingType,
         kind: text,
     },
     Purpose => {
@@ -209,7 +186,6 @@ bse_desc_fields! {
         label: "Purpose",
         bse_key: "PURPOSE",
         model: purpose,
-        column: Purpose,
         kind: text,
     },
     Segment => {
@@ -217,7 +193,6 @@ bse_desc_fields! {
         label: "Segment",
         bse_key: "SEGMENT",
         model: segment,
-        column: Segment,
         kind: text,
     },
     RdDate => {
@@ -225,7 +200,6 @@ bse_desc_fields! {
         label: "Record date",
         bse_key: "RD DATE",
         model: rd_date,
-        column: RdDate,
         kind: date,
     },
     BcStartDate => {
@@ -233,7 +207,6 @@ bse_desc_fields! {
         label: "BC start date",
         bse_key: "BC START DATE",
         model: bc_start_date,
-        column: BcStartDate,
         kind: date,
     },
     BcEndDate => {
@@ -241,7 +214,6 @@ bse_desc_fields! {
         label: "BC end date",
         bse_key: "BC END DATE",
         model: bc_end_date,
-        column: BcEndDate,
         kind: date,
     },
     NdStartDate => {
@@ -249,7 +221,6 @@ bse_desc_fields! {
         label: "ND start date",
         bse_key: "ND START DATE",
         model: nd_start_date,
-        column: NdStartDate,
         kind: date,
     },
     NdEndDate => {
@@ -257,7 +228,6 @@ bse_desc_fields! {
         label: "ND end date",
         bse_key: "ND END DATE",
         model: nd_end_date,
-        column: NdEndDate,
         kind: date,
     },
     ActualPaymentDate => {
@@ -265,7 +235,6 @@ bse_desc_fields! {
         label: "Actual payment date",
         bse_key: "ACTUAL PAYMENT DATE",
         model: actual_payment_date,
-        column: ActualPaymentDate,
         kind: date,
     },
     TypeOfSecurity => {
@@ -273,7 +242,6 @@ bse_desc_fields! {
         label: "Type of security",
         bse_key: "TYPE OF SECURITY",
         model: type_of_security,
-        column: TypeOfSecurity,
         kind: text,
     },
     AuditedUnaudited => {
@@ -281,7 +249,6 @@ bse_desc_fields! {
         label: "Audited / unaudited",
         bse_key: "AUDITED/UNAUDITED",
         model: audited_unaudited,
-        column: AuditedUnaudited,
         kind: text,
     },
     StandaloneConsolidated => {
@@ -289,7 +256,6 @@ bse_desc_fields! {
         label: "Standalone / consolidated",
         bse_key: "STANDALONE/CONSOLIDATED",
         model: standalone_consolidated,
-        column: StandaloneConsolidated,
         kind: text,
     },
     PeriodStartDate => {
@@ -297,7 +263,6 @@ bse_desc_fields! {
         label: "Period start date",
         bse_key: "PERIOD START DATE",
         model: period_start_date,
-        column: PeriodStartDate,
         kind: date,
     },
     PeriodEndDate => {
@@ -305,7 +270,6 @@ bse_desc_fields! {
         label: "Period end date",
         bse_key: "PERIOD END DATE",
         model: period_end_date,
-        column: PeriodEndDate,
         kind: date,
     },
     IndAs => {
@@ -313,7 +277,6 @@ bse_desc_fields! {
         label: "Ind AS",
         bse_key: "IND AS/NON IND AS",
         model: ind_as,
-        column: IndAs,
         kind: text,
     },
     PromoterAndGroup => {
@@ -321,7 +284,6 @@ bse_desc_fields! {
         label: "Promoter and group",
         bse_key: "PR_AND_PRGRP",
         model: promoter_and_group,
-        column: PromoterAndGroup,
         kind: text,
     },
     PublicVal => {
@@ -329,7 +291,6 @@ bse_desc_fields! {
         label: "Public",
         bse_key: "PUBLIC_VAL",
         model: public_val,
-        column: PublicVal,
         kind: text,
     },
     Emptr => {
@@ -337,7 +298,6 @@ bse_desc_fields! {
         label: "Employee trust",
         bse_key: "EMPTR",
         model: emptr,
-        column: Emptr,
         kind: text,
     },
     Status => {
@@ -345,7 +305,6 @@ bse_desc_fields! {
         label: "Status",
         bse_key: "STATUS",
         model: status,
-        column: Status,
         kind: text,
     },
     SubmissionDate => {
@@ -353,7 +312,6 @@ bse_desc_fields! {
         label: "Submission date",
         bse_key: "SUBMISSION_DT",
         model: submission_date,
-        column: SubmissionDate,
         kind: date,
     },
     RevisedFilingDate => {
@@ -361,7 +319,6 @@ bse_desc_fields! {
         label: "Revised filing date",
         bse_key: "REVISED FILING DATE",
         model: revised_filing_date,
-        column: RevisedFilingDate,
         kind: date,
     },
 }

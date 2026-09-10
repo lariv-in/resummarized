@@ -3,7 +3,9 @@
 use chrono::NaiveDate;
 use std::collections::HashMap;
 
-use super::entities::item::{ActiveModel as ItemAM, Column as ItemColumn, Model as ItemModel};
+use super::entities::shareholding_pattern::{
+    ActiveModel as ShpAM, Column as ShpColumn, Model as ShpModel,
+};
 use super::xbrl::{
     XbrlFact, all_text_facts, opt_date, opt_str, set_opt, set_opt_date, take, take_date,
 };
@@ -34,20 +36,20 @@ impl ShpFacts {
         self.nse_symbol.is_some() || self.isin.is_some() || self.company_name.is_some()
     }
 
-    pub fn apply(&self, am: &mut ItemAM) {
-        set_opt(&mut am.shp_nse_symbol, &self.nse_symbol);
-        set_opt(&mut am.shp_scrip_code, &self.scrip_code);
-        set_opt(&mut am.shp_msei_symbol, &self.msei_symbol);
-        set_opt(&mut am.shp_isin, &self.isin);
-        set_opt(&mut am.shp_company_name, &self.company_name);
-        set_opt(&mut am.shp_class_of_security, &self.class_of_security);
-        set_opt(&mut am.shp_type_of_report, &self.type_of_report);
-        set_opt_date(&mut am.shp_date_of_report, self.date_of_report);
-        set_opt(&mut am.shp_filed_under, &self.filed_under);
-        set_opt(&mut am.shp_promoter_pct, &self.promoter_pct);
-        set_opt(&mut am.shp_public_pct, &self.public_pct);
-        set_opt(&mut am.shp_promoter_shares, &self.promoter_shares);
-        set_opt(&mut am.shp_public_shares, &self.public_shares);
+    pub fn apply(&self, am: &mut ShpAM) {
+        set_opt(&mut am.nse_symbol, &self.nse_symbol);
+        set_opt(&mut am.scrip_code, &self.scrip_code);
+        set_opt(&mut am.msei_symbol, &self.msei_symbol);
+        set_opt(&mut am.isin, &self.isin);
+        set_opt(&mut am.company_name, &self.company_name);
+        set_opt(&mut am.class_of_security, &self.class_of_security);
+        set_opt(&mut am.type_of_report, &self.type_of_report);
+        set_opt_date(&mut am.date_of_report, self.date_of_report);
+        set_opt(&mut am.filed_under, &self.filed_under);
+        set_opt(&mut am.promoter_pct, &self.promoter_pct);
+        set_opt(&mut am.public_pct, &self.public_pct);
+        set_opt(&mut am.promoter_shares, &self.promoter_shares);
+        set_opt(&mut am.public_shares, &self.public_shares);
     }
 }
 
@@ -189,39 +191,39 @@ impl ShpField {
         }
     }
 
-    pub fn column(self) -> ItemColumn {
+    pub fn column(self) -> ShpColumn {
         match self {
-            Self::NseSymbol => ItemColumn::ShpNseSymbol,
-            Self::ScripCode => ItemColumn::ShpScripCode,
-            Self::MseiSymbol => ItemColumn::ShpMseiSymbol,
-            Self::Isin => ItemColumn::ShpIsin,
-            Self::CompanyName => ItemColumn::ShpCompanyName,
-            Self::ClassOfSecurity => ItemColumn::ShpClassOfSecurity,
-            Self::TypeOfReport => ItemColumn::ShpTypeOfReport,
-            Self::DateOfReport => ItemColumn::ShpDateOfReport,
-            Self::FiledUnder => ItemColumn::ShpFiledUnder,
-            Self::PromoterPct => ItemColumn::ShpPromoterPct,
-            Self::PublicPct => ItemColumn::ShpPublicPct,
-            Self::PromoterShares => ItemColumn::ShpPromoterShares,
-            Self::PublicShares => ItemColumn::ShpPublicShares,
+            Self::NseSymbol => ShpColumn::NseSymbol,
+            Self::ScripCode => ShpColumn::ScripCode,
+            Self::MseiSymbol => ShpColumn::MseiSymbol,
+            Self::Isin => ShpColumn::Isin,
+            Self::CompanyName => ShpColumn::CompanyName,
+            Self::ClassOfSecurity => ShpColumn::ClassOfSecurity,
+            Self::TypeOfReport => ShpColumn::TypeOfReport,
+            Self::DateOfReport => ShpColumn::DateOfReport,
+            Self::FiledUnder => ShpColumn::FiledUnder,
+            Self::PromoterPct => ShpColumn::PromoterPct,
+            Self::PublicPct => ShpColumn::PublicPct,
+            Self::PromoterShares => ShpColumn::PromoterShares,
+            Self::PublicShares => ShpColumn::PublicShares,
         }
     }
 
-    pub fn display(self, item: &ItemModel) -> String {
+    pub fn display(self, item: &ShpModel) -> String {
         match self {
-            Self::NseSymbol => opt_str(&item.shp_nse_symbol),
-            Self::ScripCode => opt_str(&item.shp_scrip_code),
-            Self::MseiSymbol => opt_str(&item.shp_msei_symbol),
-            Self::Isin => opt_str(&item.shp_isin),
-            Self::CompanyName => opt_str(&item.shp_company_name),
-            Self::ClassOfSecurity => opt_str(&item.shp_class_of_security),
-            Self::TypeOfReport => opt_str(&item.shp_type_of_report),
-            Self::DateOfReport => opt_date(item.shp_date_of_report),
-            Self::FiledUnder => opt_str(&item.shp_filed_under),
-            Self::PromoterPct => opt_str(&item.shp_promoter_pct),
-            Self::PublicPct => opt_str(&item.shp_public_pct),
-            Self::PromoterShares => opt_str(&item.shp_promoter_shares),
-            Self::PublicShares => opt_str(&item.shp_public_shares),
+            Self::NseSymbol => opt_str(&item.nse_symbol),
+            Self::ScripCode => opt_str(&item.scrip_code),
+            Self::MseiSymbol => opt_str(&item.msei_symbol),
+            Self::Isin => opt_str(&item.isin),
+            Self::CompanyName => opt_str(&item.company_name),
+            Self::ClassOfSecurity => opt_str(&item.class_of_security),
+            Self::TypeOfReport => opt_str(&item.type_of_report),
+            Self::DateOfReport => opt_date(item.date_of_report),
+            Self::FiledUnder => opt_str(&item.filed_under),
+            Self::PromoterPct => opt_str(&item.promoter_pct),
+            Self::PublicPct => opt_str(&item.public_pct),
+            Self::PromoterShares => opt_str(&item.promoter_shares),
+            Self::PublicShares => opt_str(&item.public_shares),
         }
     }
 }

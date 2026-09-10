@@ -2,7 +2,7 @@
 
 use chrono::NaiveDate;
 
-use super::entities::item::{ActiveModel as ItemAM, Column as ItemColumn, Model as ItemModel};
+use super::entities::insider_trading::{ActiveModel as ItAM, Column as ItColumn, Model as ItModel};
 use super::xbrl::{
     first_text_facts, opt_date, opt_str, set_opt, set_opt_date, take_clean, take_date, take_pct,
 };
@@ -39,30 +39,30 @@ impl ItFacts {
         self.nse_symbol.is_some() || self.company_name.is_some() || self.person.is_some()
     }
 
-    pub fn apply(&self, am: &mut ItemAM) {
-        set_opt(&mut am.it_nse_symbol, &self.nse_symbol);
-        set_opt(&mut am.it_scrip_code, &self.scrip_code);
-        set_opt(&mut am.it_msei_symbol, &self.msei_symbol);
-        set_opt(&mut am.it_isin, &self.isin);
-        set_opt(&mut am.it_company_name, &self.company_name);
-        set_opt(&mut am.it_regulation, &self.regulation);
-        set_opt(&mut am.it_instrument, &self.instrument);
-        set_opt(&mut am.it_person, &self.person);
-        set_opt(&mut am.it_category, &self.category);
-        set_opt(&mut am.it_txn_type, &self.txn_type);
-        set_opt(&mut am.it_qty, &self.qty);
-        set_opt(&mut am.it_value, &self.value);
-        set_opt(&mut am.it_mode, &self.mode);
-        set_opt_date(&mut am.it_from_date, self.from_date);
-        set_opt_date(&mut am.it_to_date, self.to_date);
-        set_opt(&mut am.it_prior_qty, &self.prior_qty);
-        set_opt(&mut am.it_prior_pct, &self.prior_pct);
-        set_opt(&mut am.it_post_qty, &self.post_qty);
-        set_opt(&mut am.it_post_pct, &self.post_pct);
-        set_opt(&mut am.it_signatory, &self.signatory);
-        set_opt(&mut am.it_designation, &self.designation);
-        set_opt_date(&mut am.it_filing_date, self.filing_date);
-        set_opt(&mut am.it_exchange, &self.exchange);
+    pub fn apply(&self, am: &mut ItAM) {
+        set_opt(&mut am.nse_symbol, &self.nse_symbol);
+        set_opt(&mut am.scrip_code, &self.scrip_code);
+        set_opt(&mut am.msei_symbol, &self.msei_symbol);
+        set_opt(&mut am.isin, &self.isin);
+        set_opt(&mut am.company_name, &self.company_name);
+        set_opt(&mut am.regulation, &self.regulation);
+        set_opt(&mut am.instrument, &self.instrument);
+        set_opt(&mut am.person, &self.person);
+        set_opt(&mut am.category, &self.category);
+        set_opt(&mut am.txn_type, &self.txn_type);
+        set_opt(&mut am.qty, &self.qty);
+        set_opt(&mut am.value, &self.value);
+        set_opt(&mut am.mode, &self.mode);
+        set_opt_date(&mut am.from_date, self.from_date);
+        set_opt_date(&mut am.to_date, self.to_date);
+        set_opt(&mut am.prior_qty, &self.prior_qty);
+        set_opt(&mut am.prior_pct, &self.prior_pct);
+        set_opt(&mut am.post_qty, &self.post_qty);
+        set_opt(&mut am.post_pct, &self.post_pct);
+        set_opt(&mut am.signatory, &self.signatory);
+        set_opt(&mut am.designation, &self.designation);
+        set_opt_date(&mut am.filing_date, self.filing_date);
+        set_opt(&mut am.exchange, &self.exchange);
     }
 }
 
@@ -231,59 +231,59 @@ impl ItField {
         }
     }
 
-    pub fn column(self) -> ItemColumn {
+    pub fn column(self) -> ItColumn {
         match self {
-            Self::NseSymbol => ItemColumn::ItNseSymbol,
-            Self::ScripCode => ItemColumn::ItScripCode,
-            Self::MseiSymbol => ItemColumn::ItMseiSymbol,
-            Self::Isin => ItemColumn::ItIsin,
-            Self::CompanyName => ItemColumn::ItCompanyName,
-            Self::Regulation => ItemColumn::ItRegulation,
-            Self::Instrument => ItemColumn::ItInstrument,
-            Self::Person => ItemColumn::ItPerson,
-            Self::Category => ItemColumn::ItCategory,
-            Self::TxnType => ItemColumn::ItTxnType,
-            Self::Qty => ItemColumn::ItQty,
-            Self::Value => ItemColumn::ItValue,
-            Self::Mode => ItemColumn::ItMode,
-            Self::FromDate => ItemColumn::ItFromDate,
-            Self::ToDate => ItemColumn::ItToDate,
-            Self::PriorQty => ItemColumn::ItPriorQty,
-            Self::PriorPct => ItemColumn::ItPriorPct,
-            Self::PostQty => ItemColumn::ItPostQty,
-            Self::PostPct => ItemColumn::ItPostPct,
-            Self::Signatory => ItemColumn::ItSignatory,
-            Self::Designation => ItemColumn::ItDesignation,
-            Self::FilingDate => ItemColumn::ItFilingDate,
-            Self::Exchange => ItemColumn::ItExchange,
+            Self::NseSymbol => ItColumn::NseSymbol,
+            Self::ScripCode => ItColumn::ScripCode,
+            Self::MseiSymbol => ItColumn::MseiSymbol,
+            Self::Isin => ItColumn::Isin,
+            Self::CompanyName => ItColumn::CompanyName,
+            Self::Regulation => ItColumn::Regulation,
+            Self::Instrument => ItColumn::Instrument,
+            Self::Person => ItColumn::Person,
+            Self::Category => ItColumn::Category,
+            Self::TxnType => ItColumn::TxnType,
+            Self::Qty => ItColumn::Qty,
+            Self::Value => ItColumn::Value,
+            Self::Mode => ItColumn::Mode,
+            Self::FromDate => ItColumn::FromDate,
+            Self::ToDate => ItColumn::ToDate,
+            Self::PriorQty => ItColumn::PriorQty,
+            Self::PriorPct => ItColumn::PriorPct,
+            Self::PostQty => ItColumn::PostQty,
+            Self::PostPct => ItColumn::PostPct,
+            Self::Signatory => ItColumn::Signatory,
+            Self::Designation => ItColumn::Designation,
+            Self::FilingDate => ItColumn::FilingDate,
+            Self::Exchange => ItColumn::Exchange,
         }
     }
 
-    pub fn display(self, item: &ItemModel) -> String {
+    pub fn display(self, item: &ItModel) -> String {
         match self {
-            Self::NseSymbol => opt_str(&item.it_nse_symbol),
-            Self::ScripCode => opt_str(&item.it_scrip_code),
-            Self::MseiSymbol => opt_str(&item.it_msei_symbol),
-            Self::Isin => opt_str(&item.it_isin),
-            Self::CompanyName => opt_str(&item.it_company_name),
-            Self::Regulation => opt_str(&item.it_regulation),
-            Self::Instrument => opt_str(&item.it_instrument),
-            Self::Person => opt_str(&item.it_person),
-            Self::Category => opt_str(&item.it_category),
-            Self::TxnType => opt_str(&item.it_txn_type),
-            Self::Qty => opt_str(&item.it_qty),
-            Self::Value => opt_str(&item.it_value),
-            Self::Mode => opt_str(&item.it_mode),
-            Self::FromDate => opt_date(item.it_from_date),
-            Self::ToDate => opt_date(item.it_to_date),
-            Self::PriorQty => opt_str(&item.it_prior_qty),
-            Self::PriorPct => opt_str(&item.it_prior_pct),
-            Self::PostQty => opt_str(&item.it_post_qty),
-            Self::PostPct => opt_str(&item.it_post_pct),
-            Self::Signatory => opt_str(&item.it_signatory),
-            Self::Designation => opt_str(&item.it_designation),
-            Self::FilingDate => opt_date(item.it_filing_date),
-            Self::Exchange => opt_str(&item.it_exchange),
+            Self::NseSymbol => opt_str(&item.nse_symbol),
+            Self::ScripCode => opt_str(&item.scrip_code),
+            Self::MseiSymbol => opt_str(&item.msei_symbol),
+            Self::Isin => opt_str(&item.isin),
+            Self::CompanyName => opt_str(&item.company_name),
+            Self::Regulation => opt_str(&item.regulation),
+            Self::Instrument => opt_str(&item.instrument),
+            Self::Person => opt_str(&item.person),
+            Self::Category => opt_str(&item.category),
+            Self::TxnType => opt_str(&item.txn_type),
+            Self::Qty => opt_str(&item.qty),
+            Self::Value => opt_str(&item.value),
+            Self::Mode => opt_str(&item.mode),
+            Self::FromDate => opt_date(item.from_date),
+            Self::ToDate => opt_date(item.to_date),
+            Self::PriorQty => opt_str(&item.prior_qty),
+            Self::PriorPct => opt_str(&item.prior_pct),
+            Self::PostQty => opt_str(&item.post_qty),
+            Self::PostPct => opt_str(&item.post_pct),
+            Self::Signatory => opt_str(&item.signatory),
+            Self::Designation => opt_str(&item.designation),
+            Self::FilingDate => opt_date(item.filing_date),
+            Self::Exchange => opt_str(&item.exchange),
         }
     }
 }

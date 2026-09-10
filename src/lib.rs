@@ -6,5 +6,6 @@
 pub mod bse;
 pub mod dates;
 pub mod nse;
-pub mod website_seed;
+pub mod publisher;
 mod search;
+pub mod website_seed;

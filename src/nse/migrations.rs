@@ -17,6 +17,7 @@ mod m00012_shp_xbrl;
 mod m00013_scr_xbrl;
 mod m00014_five_xbrl;
 mod m00015_pg_trgm;
+mod m00016_split_feed_tables;
 
 #[derive(Clone, Copy, Default)]
 pub struct Migrator;
@@ -40,6 +41,7 @@ impl MigratorTrait for Migrator {
             Box::new(m00013_scr_xbrl::Migration),
             Box::new(m00014_five_xbrl::Migration),
             Box::new(m00015_pg_trgm::Migration),
+            Box::new(m00016_split_feed_tables::Migration),
         ]
     }
 }

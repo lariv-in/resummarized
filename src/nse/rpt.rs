@@ -2,7 +2,9 @@
 
 use chrono::NaiveDate;
 
-use super::entities::item::{ActiveModel as ItemAM, Column as ItemColumn, Model as ItemModel};
+use super::entities::related_party_transactions::{
+    ActiveModel as RptAM, Column as RptColumn, Model as RptModel,
+};
 use super::xbrl::{
     all_text_facts, first_text_facts, opt_date, opt_str, set_opt, set_opt_date, take_clean,
     take_date, take_yes_no,
@@ -32,22 +34,22 @@ impl RptFacts {
         self.nse_symbol.is_some() || self.company_name.is_some()
     }
 
-    pub fn apply(&self, am: &mut ItemAM) {
-        set_opt(&mut am.rpt_nse_symbol, &self.nse_symbol);
-        set_opt(&mut am.rpt_scrip_code, &self.scrip_code);
-        set_opt(&mut am.rpt_msei_symbol, &self.msei_symbol);
-        set_opt(&mut am.rpt_company_name, &self.company_name);
-        set_opt_date(&mut am.rpt_fy_start, self.fy_start);
-        set_opt_date(&mut am.rpt_fy_end, self.fy_end);
-        set_opt(&mut am.rpt_reporting_period, &self.reporting_period);
-        set_opt_date(&mut am.rpt_period_start, self.period_start);
-        set_opt_date(&mut am.rpt_period_end, self.period_end);
-        set_opt(&mut am.rpt_has_related_party, &self.has_related_party);
-        set_opt(&mut am.rpt_entered_transactions, &self.entered_transactions);
-        set_opt(&mut am.rpt_transaction_count, &self.transaction_count);
-        set_opt(&mut am.rpt_counterparty, &self.counterparty);
-        set_opt(&mut am.rpt_transaction_type, &self.transaction_type);
-        set_opt(&mut am.rpt_amount, &self.amount);
+    pub fn apply(&self, am: &mut RptAM) {
+        set_opt(&mut am.nse_symbol, &self.nse_symbol);
+        set_opt(&mut am.scrip_code, &self.scrip_code);
+        set_opt(&mut am.msei_symbol, &self.msei_symbol);
+        set_opt(&mut am.company_name, &self.company_name);
+        set_opt_date(&mut am.fy_start, self.fy_start);
+        set_opt_date(&mut am.fy_end, self.fy_end);
+        set_opt(&mut am.reporting_period, &self.reporting_period);
+        set_opt_date(&mut am.period_start, self.period_start);
+        set_opt_date(&mut am.period_end, self.period_end);
+        set_opt(&mut am.has_related_party, &self.has_related_party);
+        set_opt(&mut am.entered_transactions, &self.entered_transactions);
+        set_opt(&mut am.transaction_count, &self.transaction_count);
+        set_opt(&mut am.counterparty, &self.counterparty);
+        set_opt(&mut am.transaction_type, &self.transaction_type);
+        set_opt(&mut am.amount, &self.amount);
     }
 }
 
@@ -167,43 +169,43 @@ impl RptField {
         }
     }
 
-    pub fn column(self) -> ItemColumn {
+    pub fn column(self) -> RptColumn {
         match self {
-            Self::NseSymbol => ItemColumn::RptNseSymbol,
-            Self::ScripCode => ItemColumn::RptScripCode,
-            Self::MseiSymbol => ItemColumn::RptMseiSymbol,
-            Self::CompanyName => ItemColumn::RptCompanyName,
-            Self::FyStart => ItemColumn::RptFyStart,
-            Self::FyEnd => ItemColumn::RptFyEnd,
-            Self::ReportingPeriod => ItemColumn::RptReportingPeriod,
-            Self::PeriodStart => ItemColumn::RptPeriodStart,
-            Self::PeriodEnd => ItemColumn::RptPeriodEnd,
-            Self::HasRelatedParty => ItemColumn::RptHasRelatedParty,
-            Self::EnteredTransactions => ItemColumn::RptEnteredTransactions,
-            Self::TransactionCount => ItemColumn::RptTransactionCount,
-            Self::Counterparty => ItemColumn::RptCounterparty,
-            Self::TransactionType => ItemColumn::RptTransactionType,
-            Self::Amount => ItemColumn::RptAmount,
+            Self::NseSymbol => RptColumn::NseSymbol,
+            Self::ScripCode => RptColumn::ScripCode,
+            Self::MseiSymbol => RptColumn::MseiSymbol,
+            Self::CompanyName => RptColumn::CompanyName,
+            Self::FyStart => RptColumn::FyStart,
+            Self::FyEnd => RptColumn::FyEnd,
+            Self::ReportingPeriod => RptColumn::ReportingPeriod,
+            Self::PeriodStart => RptColumn::PeriodStart,
+            Self::PeriodEnd => RptColumn::PeriodEnd,
+            Self::HasRelatedParty => RptColumn::HasRelatedParty,
+            Self::EnteredTransactions => RptColumn::EnteredTransactions,
+            Self::TransactionCount => RptColumn::TransactionCount,
+            Self::Counterparty => RptColumn::Counterparty,
+            Self::TransactionType => RptColumn::TransactionType,
+            Self::Amount => RptColumn::Amount,
         }
     }
 
-    pub fn display(self, item: &ItemModel) -> String {
+    pub fn display(self, item: &RptModel) -> String {
         match self {
-            Self::NseSymbol => opt_str(&item.rpt_nse_symbol),
-            Self::ScripCode => opt_str(&item.rpt_scrip_code),
-            Self::MseiSymbol => opt_str(&item.rpt_msei_symbol),
-            Self::CompanyName => opt_str(&item.rpt_company_name),
-            Self::FyStart => opt_date(item.rpt_fy_start),
-            Self::FyEnd => opt_date(item.rpt_fy_end),
-            Self::ReportingPeriod => opt_str(&item.rpt_reporting_period),
-            Self::PeriodStart => opt_date(item.rpt_period_start),
-            Self::PeriodEnd => opt_date(item.rpt_period_end),
-            Self::HasRelatedParty => opt_str(&item.rpt_has_related_party),
-            Self::EnteredTransactions => opt_str(&item.rpt_entered_transactions),
-            Self::TransactionCount => opt_str(&item.rpt_transaction_count),
-            Self::Counterparty => opt_str(&item.rpt_counterparty),
-            Self::TransactionType => opt_str(&item.rpt_transaction_type),
-            Self::Amount => opt_str(&item.rpt_amount),
+            Self::NseSymbol => opt_str(&item.nse_symbol),
+            Self::ScripCode => opt_str(&item.scrip_code),
+            Self::MseiSymbol => opt_str(&item.msei_symbol),
+            Self::CompanyName => opt_str(&item.company_name),
+            Self::FyStart => opt_date(item.fy_start),
+            Self::FyEnd => opt_date(item.fy_end),
+            Self::ReportingPeriod => opt_str(&item.reporting_period),
+            Self::PeriodStart => opt_date(item.period_start),
+            Self::PeriodEnd => opt_date(item.period_end),
+            Self::HasRelatedParty => opt_str(&item.has_related_party),
+            Self::EnteredTransactions => opt_str(&item.entered_transactions),
+            Self::TransactionCount => opt_str(&item.transaction_count),
+            Self::Counterparty => opt_str(&item.counterparty),
+            Self::TransactionType => opt_str(&item.transaction_type),
+            Self::Amount => opt_str(&item.amount),
         }
     }
 }

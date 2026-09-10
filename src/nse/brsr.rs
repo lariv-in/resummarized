@@ -3,7 +3,7 @@
 use chrono::NaiveDate;
 use std::collections::HashMap;
 
-use super::entities::item::{ActiveModel as ItemAM, Column as ItemColumn, Model as ItemModel};
+use super::entities::brsr::{ActiveModel as BrsrAM, Column as BrsrColumn, Model as BrsrModel};
 use super::xbrl::{first_text_facts, opt_date, opt_str, set_opt, set_opt_date, take, take_date};
 
 /// Section A identity facts from a BRSR `WebXMLFile` XBRL instance.
@@ -52,43 +52,40 @@ impl BrsrFacts {
             || self.company_name.is_some()
     }
 
-    pub fn apply(&self, am: &mut ItemAM) {
-        set_opt(&mut am.brsr_nse_symbol, &self.nse_symbol);
-        set_opt(&mut am.brsr_scrip_code, &self.scrip_code);
-        set_opt(&mut am.brsr_msei_symbol, &self.msei_symbol);
-        set_opt(&mut am.brsr_isin, &self.isin);
-        set_opt(&mut am.brsr_cin, &self.cin);
-        set_opt(&mut am.brsr_company_name, &self.company_name);
-        set_opt_date(
-            &mut am.brsr_date_of_incorporation,
-            self.date_of_incorporation,
-        );
-        set_opt(&mut am.brsr_registered_office, &self.registered_office);
-        set_opt(&mut am.brsr_corporate_office, &self.corporate_office);
-        set_opt(&mut am.brsr_email, &self.email);
-        set_opt(&mut am.brsr_telephone, &self.telephone);
-        set_opt(&mut am.brsr_website, &self.website);
-        set_opt_date(&mut am.brsr_fy_start, self.fy_start);
-        set_opt_date(&mut am.brsr_fy_end, self.fy_end);
-        set_opt_date(&mut am.brsr_py_start, self.py_start);
-        set_opt_date(&mut am.brsr_py_end, self.py_end);
-        set_opt_date(&mut am.brsr_ppy_start, self.ppy_start);
-        set_opt_date(&mut am.brsr_ppy_end, self.ppy_end);
-        set_opt(&mut am.brsr_paid_up_capital, &self.paid_up_capital);
-        set_opt(&mut am.brsr_contact_person, &self.contact_person);
-        set_opt(&mut am.brsr_contact_phone, &self.contact_phone);
-        set_opt(&mut am.brsr_contact_email, &self.contact_email);
-        set_opt(&mut am.brsr_reporting_boundary, &self.reporting_boundary);
-        set_opt(&mut am.brsr_core_assurance, &self.core_assurance);
-        set_opt(&mut am.brsr_turnover, &self.turnover);
-        set_opt(&mut am.brsr_net_worth, &self.net_worth);
-        set_opt(&mut am.brsr_states_served, &self.states_served);
-        set_opt(&mut am.brsr_countries_served, &self.countries_served);
-        set_opt(&mut am.brsr_board_size, &self.board_size);
-        set_opt(&mut am.brsr_female_directors, &self.female_directors);
-        set_opt(&mut am.brsr_kmp, &self.kmp);
-        set_opt(&mut am.brsr_female_kmp, &self.female_kmp);
-        set_opt(&mut am.brsr_csr_applicable, &self.csr_applicable);
+    pub fn apply(&self, am: &mut BrsrAM) {
+        set_opt(&mut am.nse_symbol, &self.nse_symbol);
+        set_opt(&mut am.scrip_code, &self.scrip_code);
+        set_opt(&mut am.msei_symbol, &self.msei_symbol);
+        set_opt(&mut am.isin, &self.isin);
+        set_opt(&mut am.cin, &self.cin);
+        set_opt(&mut am.company_name, &self.company_name);
+        set_opt_date(&mut am.date_of_incorporation, self.date_of_incorporation);
+        set_opt(&mut am.registered_office, &self.registered_office);
+        set_opt(&mut am.corporate_office, &self.corporate_office);
+        set_opt(&mut am.email, &self.email);
+        set_opt(&mut am.telephone, &self.telephone);
+        set_opt(&mut am.website, &self.website);
+        set_opt_date(&mut am.fy_start, self.fy_start);
+        set_opt_date(&mut am.fy_end, self.fy_end);
+        set_opt_date(&mut am.py_start, self.py_start);
+        set_opt_date(&mut am.py_end, self.py_end);
+        set_opt_date(&mut am.ppy_start, self.ppy_start);
+        set_opt_date(&mut am.ppy_end, self.ppy_end);
+        set_opt(&mut am.paid_up_capital, &self.paid_up_capital);
+        set_opt(&mut am.contact_person, &self.contact_person);
+        set_opt(&mut am.contact_phone, &self.contact_phone);
+        set_opt(&mut am.contact_email, &self.contact_email);
+        set_opt(&mut am.reporting_boundary, &self.reporting_boundary);
+        set_opt(&mut am.core_assurance, &self.core_assurance);
+        set_opt(&mut am.turnover, &self.turnover);
+        set_opt(&mut am.net_worth, &self.net_worth);
+        set_opt(&mut am.states_served, &self.states_served);
+        set_opt(&mut am.countries_served, &self.countries_served);
+        set_opt(&mut am.board_size, &self.board_size);
+        set_opt(&mut am.female_directors, &self.female_directors);
+        set_opt(&mut am.kmp, &self.kmp);
+        set_opt(&mut am.female_kmp, &self.female_kmp);
+        set_opt(&mut am.csr_applicable, &self.csr_applicable);
     }
 }
 
@@ -301,79 +298,79 @@ impl BrsrField {
         }
     }
 
-    pub fn column(self) -> ItemColumn {
+    pub fn column(self) -> BrsrColumn {
         match self {
-            Self::NseSymbol => ItemColumn::BrsrNseSymbol,
-            Self::ScripCode => ItemColumn::BrsrScripCode,
-            Self::MseiSymbol => ItemColumn::BrsrMseiSymbol,
-            Self::Isin => ItemColumn::BrsrIsin,
-            Self::Cin => ItemColumn::BrsrCin,
-            Self::CompanyName => ItemColumn::BrsrCompanyName,
-            Self::DateOfIncorporation => ItemColumn::BrsrDateOfIncorporation,
-            Self::RegisteredOffice => ItemColumn::BrsrRegisteredOffice,
-            Self::CorporateOffice => ItemColumn::BrsrCorporateOffice,
-            Self::Email => ItemColumn::BrsrEmail,
-            Self::Telephone => ItemColumn::BrsrTelephone,
-            Self::Website => ItemColumn::BrsrWebsite,
-            Self::FyStart => ItemColumn::BrsrFyStart,
-            Self::FyEnd => ItemColumn::BrsrFyEnd,
-            Self::PyStart => ItemColumn::BrsrPyStart,
-            Self::PyEnd => ItemColumn::BrsrPyEnd,
-            Self::PpyStart => ItemColumn::BrsrPpyStart,
-            Self::PpyEnd => ItemColumn::BrsrPpyEnd,
-            Self::PaidUpCapital => ItemColumn::BrsrPaidUpCapital,
-            Self::ContactPerson => ItemColumn::BrsrContactPerson,
-            Self::ContactPhone => ItemColumn::BrsrContactPhone,
-            Self::ContactEmail => ItemColumn::BrsrContactEmail,
-            Self::ReportingBoundary => ItemColumn::BrsrReportingBoundary,
-            Self::CoreAssurance => ItemColumn::BrsrCoreAssurance,
-            Self::Turnover => ItemColumn::BrsrTurnover,
-            Self::NetWorth => ItemColumn::BrsrNetWorth,
-            Self::StatesServed => ItemColumn::BrsrStatesServed,
-            Self::CountriesServed => ItemColumn::BrsrCountriesServed,
-            Self::BoardSize => ItemColumn::BrsrBoardSize,
-            Self::FemaleDirectors => ItemColumn::BrsrFemaleDirectors,
-            Self::Kmp => ItemColumn::BrsrKmp,
-            Self::FemaleKmp => ItemColumn::BrsrFemaleKmp,
-            Self::CsrApplicable => ItemColumn::BrsrCsrApplicable,
+            Self::NseSymbol => BrsrColumn::NseSymbol,
+            Self::ScripCode => BrsrColumn::ScripCode,
+            Self::MseiSymbol => BrsrColumn::MseiSymbol,
+            Self::Isin => BrsrColumn::Isin,
+            Self::Cin => BrsrColumn::Cin,
+            Self::CompanyName => BrsrColumn::CompanyName,
+            Self::DateOfIncorporation => BrsrColumn::DateOfIncorporation,
+            Self::RegisteredOffice => BrsrColumn::RegisteredOffice,
+            Self::CorporateOffice => BrsrColumn::CorporateOffice,
+            Self::Email => BrsrColumn::Email,
+            Self::Telephone => BrsrColumn::Telephone,
+            Self::Website => BrsrColumn::Website,
+            Self::FyStart => BrsrColumn::FyStart,
+            Self::FyEnd => BrsrColumn::FyEnd,
+            Self::PyStart => BrsrColumn::PyStart,
+            Self::PyEnd => BrsrColumn::PyEnd,
+            Self::PpyStart => BrsrColumn::PpyStart,
+            Self::PpyEnd => BrsrColumn::PpyEnd,
+            Self::PaidUpCapital => BrsrColumn::PaidUpCapital,
+            Self::ContactPerson => BrsrColumn::ContactPerson,
+            Self::ContactPhone => BrsrColumn::ContactPhone,
+            Self::ContactEmail => BrsrColumn::ContactEmail,
+            Self::ReportingBoundary => BrsrColumn::ReportingBoundary,
+            Self::CoreAssurance => BrsrColumn::CoreAssurance,
+            Self::Turnover => BrsrColumn::Turnover,
+            Self::NetWorth => BrsrColumn::NetWorth,
+            Self::StatesServed => BrsrColumn::StatesServed,
+            Self::CountriesServed => BrsrColumn::CountriesServed,
+            Self::BoardSize => BrsrColumn::BoardSize,
+            Self::FemaleDirectors => BrsrColumn::FemaleDirectors,
+            Self::Kmp => BrsrColumn::Kmp,
+            Self::FemaleKmp => BrsrColumn::FemaleKmp,
+            Self::CsrApplicable => BrsrColumn::CsrApplicable,
         }
     }
 
-    pub fn display(self, item: &ItemModel) -> String {
+    pub fn display(self, item: &BrsrModel) -> String {
         match self {
-            Self::NseSymbol => opt_str(&item.brsr_nse_symbol),
-            Self::ScripCode => opt_str(&item.brsr_scrip_code),
-            Self::MseiSymbol => opt_str(&item.brsr_msei_symbol),
-            Self::Isin => opt_str(&item.brsr_isin),
-            Self::Cin => opt_str(&item.brsr_cin),
-            Self::CompanyName => opt_str(&item.brsr_company_name),
-            Self::DateOfIncorporation => opt_date(item.brsr_date_of_incorporation),
-            Self::RegisteredOffice => opt_str(&item.brsr_registered_office),
-            Self::CorporateOffice => opt_str(&item.brsr_corporate_office),
-            Self::Email => opt_str(&item.brsr_email),
-            Self::Telephone => opt_str(&item.brsr_telephone),
-            Self::Website => opt_str(&item.brsr_website),
-            Self::FyStart => opt_date(item.brsr_fy_start),
-            Self::FyEnd => opt_date(item.brsr_fy_end),
-            Self::PyStart => opt_date(item.brsr_py_start),
-            Self::PyEnd => opt_date(item.brsr_py_end),
-            Self::PpyStart => opt_date(item.brsr_ppy_start),
-            Self::PpyEnd => opt_date(item.brsr_ppy_end),
-            Self::PaidUpCapital => opt_str(&item.brsr_paid_up_capital),
-            Self::ContactPerson => opt_str(&item.brsr_contact_person),
-            Self::ContactPhone => opt_str(&item.brsr_contact_phone),
-            Self::ContactEmail => opt_str(&item.brsr_contact_email),
-            Self::ReportingBoundary => opt_str(&item.brsr_reporting_boundary),
-            Self::CoreAssurance => opt_str(&item.brsr_core_assurance),
-            Self::Turnover => opt_str(&item.brsr_turnover),
-            Self::NetWorth => opt_str(&item.brsr_net_worth),
-            Self::StatesServed => opt_str(&item.brsr_states_served),
-            Self::CountriesServed => opt_str(&item.brsr_countries_served),
-            Self::BoardSize => opt_str(&item.brsr_board_size),
-            Self::FemaleDirectors => opt_str(&item.brsr_female_directors),
-            Self::Kmp => opt_str(&item.brsr_kmp),
-            Self::FemaleKmp => opt_str(&item.brsr_female_kmp),
-            Self::CsrApplicable => opt_str(&item.brsr_csr_applicable),
+            Self::NseSymbol => opt_str(&item.nse_symbol),
+            Self::ScripCode => opt_str(&item.scrip_code),
+            Self::MseiSymbol => opt_str(&item.msei_symbol),
+            Self::Isin => opt_str(&item.isin),
+            Self::Cin => opt_str(&item.cin),
+            Self::CompanyName => opt_str(&item.company_name),
+            Self::DateOfIncorporation => opt_date(item.date_of_incorporation),
+            Self::RegisteredOffice => opt_str(&item.registered_office),
+            Self::CorporateOffice => opt_str(&item.corporate_office),
+            Self::Email => opt_str(&item.email),
+            Self::Telephone => opt_str(&item.telephone),
+            Self::Website => opt_str(&item.website),
+            Self::FyStart => opt_date(item.fy_start),
+            Self::FyEnd => opt_date(item.fy_end),
+            Self::PyStart => opt_date(item.py_start),
+            Self::PyEnd => opt_date(item.py_end),
+            Self::PpyStart => opt_date(item.ppy_start),
+            Self::PpyEnd => opt_date(item.ppy_end),
+            Self::PaidUpCapital => opt_str(&item.paid_up_capital),
+            Self::ContactPerson => opt_str(&item.contact_person),
+            Self::ContactPhone => opt_str(&item.contact_phone),
+            Self::ContactEmail => opt_str(&item.contact_email),
+            Self::ReportingBoundary => opt_str(&item.reporting_boundary),
+            Self::CoreAssurance => opt_str(&item.core_assurance),
+            Self::Turnover => opt_str(&item.turnover),
+            Self::NetWorth => opt_str(&item.net_worth),
+            Self::StatesServed => opt_str(&item.states_served),
+            Self::CountriesServed => opt_str(&item.countries_served),
+            Self::BoardSize => opt_str(&item.board_size),
+            Self::FemaleDirectors => opt_str(&item.female_directors),
+            Self::Kmp => opt_str(&item.kmp),
+            Self::FemaleKmp => opt_str(&item.female_kmp),
+            Self::CsrApplicable => opt_str(&item.csr_applicable),
         }
     }
 }

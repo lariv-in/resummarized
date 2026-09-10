@@ -3,7 +3,9 @@
 use chrono::NaiveDate;
 use std::collections::HashMap;
 
-use super::entities::item::{ActiveModel as ItemAM, Column as ItemColumn, Model as ItemModel};
+use super::entities::unitholding_patterns::{
+    ActiveModel as UhpAM, Column as UhpColumn, Model as UhpModel,
+};
 use super::xbrl::{first_text_facts, opt_date, opt_str, set_opt, set_opt_date, take, take_date};
 
 /// Document-level identity facts (not per-category holding tables).
@@ -27,21 +29,18 @@ impl UhpFacts {
         self.nse_symbol.is_some() || self.company_name.is_some() || self.sebi_registration.is_some()
     }
 
-    pub fn apply(&self, am: &mut ItemAM) {
-        set_opt(&mut am.uhp_scrip_code, &self.scrip_code);
-        set_opt(&mut am.uhp_nse_symbol, &self.nse_symbol);
-        set_opt(&mut am.uhp_msei_symbol, &self.msei_symbol);
-        set_opt(&mut am.uhp_sebi_registration, &self.sebi_registration);
-        set_opt(&mut am.uhp_company_name, &self.company_name);
-        set_opt(&mut am.uhp_type_of_report, &self.type_of_report);
-        set_opt(&mut am.uhp_number_of_securities, &self.number_of_securities);
-        set_opt_date(
-            &mut am.uhp_reporting_period_start,
-            self.reporting_period_start,
-        );
-        set_opt_date(&mut am.uhp_date_of_report, self.date_of_report);
-        set_opt_date(&mut am.uhp_fy_start, self.fy_start);
-        set_opt_date(&mut am.uhp_fy_end, self.fy_end);
+    pub fn apply(&self, am: &mut UhpAM) {
+        set_opt(&mut am.scrip_code, &self.scrip_code);
+        set_opt(&mut am.nse_symbol, &self.nse_symbol);
+        set_opt(&mut am.msei_symbol, &self.msei_symbol);
+        set_opt(&mut am.sebi_registration, &self.sebi_registration);
+        set_opt(&mut am.company_name, &self.company_name);
+        set_opt(&mut am.type_of_report, &self.type_of_report);
+        set_opt(&mut am.number_of_securities, &self.number_of_securities);
+        set_opt_date(&mut am.reporting_period_start, self.reporting_period_start);
+        set_opt_date(&mut am.date_of_report, self.date_of_report);
+        set_opt_date(&mut am.fy_start, self.fy_start);
+        set_opt_date(&mut am.fy_end, self.fy_end);
     }
 }
 
@@ -135,35 +134,35 @@ impl UhpField {
         }
     }
 
-    pub fn column(self) -> ItemColumn {
+    pub fn column(self) -> UhpColumn {
         match self {
-            Self::NseSymbol => ItemColumn::UhpNseSymbol,
-            Self::ScripCode => ItemColumn::UhpScripCode,
-            Self::MseiSymbol => ItemColumn::UhpMseiSymbol,
-            Self::SebiRegistration => ItemColumn::UhpSebiRegistration,
-            Self::CompanyName => ItemColumn::UhpCompanyName,
-            Self::TypeOfReport => ItemColumn::UhpTypeOfReport,
-            Self::NumberOfSecurities => ItemColumn::UhpNumberOfSecurities,
-            Self::ReportingPeriodStart => ItemColumn::UhpReportingPeriodStart,
-            Self::DateOfReport => ItemColumn::UhpDateOfReport,
-            Self::FyStart => ItemColumn::UhpFyStart,
-            Self::FyEnd => ItemColumn::UhpFyEnd,
+            Self::NseSymbol => UhpColumn::NseSymbol,
+            Self::ScripCode => UhpColumn::ScripCode,
+            Self::MseiSymbol => UhpColumn::MseiSymbol,
+            Self::SebiRegistration => UhpColumn::SebiRegistration,
+            Self::CompanyName => UhpColumn::CompanyName,
+            Self::TypeOfReport => UhpColumn::TypeOfReport,
+            Self::NumberOfSecurities => UhpColumn::NumberOfSecurities,
+            Self::ReportingPeriodStart => UhpColumn::ReportingPeriodStart,
+            Self::DateOfReport => UhpColumn::DateOfReport,
+            Self::FyStart => UhpColumn::FyStart,
+            Self::FyEnd => UhpColumn::FyEnd,
         }
     }
 
-    pub fn display(self, item: &ItemModel) -> String {
+    pub fn display(self, item: &UhpModel) -> String {
         match self {
-            Self::NseSymbol => opt_str(&item.uhp_nse_symbol),
-            Self::ScripCode => opt_str(&item.uhp_scrip_code),
-            Self::MseiSymbol => opt_str(&item.uhp_msei_symbol),
-            Self::SebiRegistration => opt_str(&item.uhp_sebi_registration),
-            Self::CompanyName => opt_str(&item.uhp_company_name),
-            Self::TypeOfReport => opt_str(&item.uhp_type_of_report),
-            Self::NumberOfSecurities => opt_str(&item.uhp_number_of_securities),
-            Self::ReportingPeriodStart => opt_date(item.uhp_reporting_period_start),
-            Self::DateOfReport => opt_date(item.uhp_date_of_report),
-            Self::FyStart => opt_date(item.uhp_fy_start),
-            Self::FyEnd => opt_date(item.uhp_fy_end),
+            Self::NseSymbol => opt_str(&item.nse_symbol),
+            Self::ScripCode => opt_str(&item.scrip_code),
+            Self::MseiSymbol => opt_str(&item.msei_symbol),
+            Self::SebiRegistration => opt_str(&item.sebi_registration),
+            Self::CompanyName => opt_str(&item.company_name),
+            Self::TypeOfReport => opt_str(&item.type_of_report),
+            Self::NumberOfSecurities => opt_str(&item.number_of_securities),
+            Self::ReportingPeriodStart => opt_date(item.reporting_period_start),
+            Self::DateOfReport => opt_date(item.date_of_report),
+            Self::FyStart => opt_date(item.fy_start),
+            Self::FyEnd => opt_date(item.fy_end),
         }
     }
 }

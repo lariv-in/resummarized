@@ -1,197 +1,24 @@
 //! Rune sandbox bindings for NSE RSS trigram search.
 
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use lariv_rs::rune_env::{
     NativeBinding, RuneEnvCapability, RuneEnvCtx, RuneEnvRegistrar, block_on_async, json_to_rune,
 };
+use sea_orm::{ColumnTrait, EntityTrait, QueryFilter, QueryOrder, QuerySelect};
+use serde_json::json;
 
 use crate::nse::entities::item::{self, Entity as ItemEntity};
 use crate::nse::entities::status::{self, Entity as StatusEntity};
-use crate::search::{parse_search_args, results_json, search_models};
+use crate::nse::extras;
+use crate::nse::feeds::NseFeedKind;
+use crate::search::{compact_json, parse_search_args, results_json, search_models};
 
 const ITEM_TEXT_COLUMNS: &[item::Column] = &[
     item::Column::FeedKind,
     item::Column::Title,
     item::Column::Description,
-    item::Column::Subject,
-    item::Column::Series,
-    item::Column::Purpose,
-    item::Column::FaceValue,
-    item::Column::RelatingTo,
-    item::Column::AuditedUnaudited,
-    item::Column::Cumulative,
-    item::Column::Consolidated,
-    item::Column::IndAs,
-    item::Column::Period,
-    item::Column::EncumberedPromoterNames,
-    item::Column::AcquirerNames,
-    item::Column::PromoterNames,
-    item::Column::FinancialYear,
-    item::Column::SubmissionType,
-    item::Column::Remarks,
-    item::Column::BrsrNseSymbol,
-    item::Column::BrsrScripCode,
-    item::Column::BrsrMseiSymbol,
-    item::Column::BrsrIsin,
-    item::Column::BrsrCin,
-    item::Column::BrsrCompanyName,
-    item::Column::BrsrRegisteredOffice,
-    item::Column::BrsrCorporateOffice,
-    item::Column::BrsrEmail,
-    item::Column::BrsrTelephone,
-    item::Column::BrsrWebsite,
-    item::Column::BrsrPaidUpCapital,
-    item::Column::BrsrContactPerson,
-    item::Column::BrsrContactPhone,
-    item::Column::BrsrContactEmail,
-    item::Column::BrsrReportingBoundary,
-    item::Column::BrsrCoreAssurance,
-    item::Column::BrsrTurnover,
-    item::Column::BrsrNetWorth,
-    item::Column::BrsrStatesServed,
-    item::Column::BrsrCountriesServed,
-    item::Column::BrsrBoardSize,
-    item::Column::BrsrFemaleDirectors,
-    item::Column::BrsrKmp,
-    item::Column::BrsrFemaleKmp,
-    item::Column::BrsrCsrApplicable,
-    item::Column::UhpScripCode,
-    item::Column::UhpNseSymbol,
-    item::Column::UhpMseiSymbol,
-    item::Column::UhpSebiRegistration,
-    item::Column::UhpCompanyName,
-    item::Column::UhpTypeOfReport,
-    item::Column::UhpNumberOfSecurities,
-    item::Column::VotingScripCode,
-    item::Column::VotingSymbol,
-    item::Column::VotingMseiSymbol,
-    item::Column::VotingIsin,
-    item::Column::VotingCompanyName,
-    item::Column::VotingTypeOfMeeting,
-    item::Column::VotingStartTime,
-    item::Column::VotingEndTime,
-    item::Column::VotingScrutinizer,
-    item::Column::VotingScrutinizerFirm,
-    item::Column::VotingScrutinizerQualification,
-    item::Column::VotingScrutinizerMembership,
-    item::Column::VotingShareholdersOnRecord,
-    item::Column::VotingPromotersInPerson,
-    item::Column::VotingPublicInPerson,
-    item::Column::VotingPromotersVc,
-    item::Column::VotingPublicVc,
-    item::Column::VotingResolutionsPassed,
-    item::Column::SodNseSymbol,
-    item::Column::SodScripCode,
-    item::Column::SodMseiSymbol,
-    item::Column::SodIsin,
-    item::Column::SodCompanyName,
-    item::Column::SodStatementCount,
-    item::Column::SodModeOfFundRaising,
-    item::Column::SodAmountRaised,
-    item::Column::SodMonitoringAgency,
-    item::Column::SodMonitoringAgencyName,
-    item::Column::SodHasDeviation,
-    item::Column::SodDeviationExplanation,
-    item::Column::SodShareholderApproved,
-    item::Column::SodAuditCommitteeComments,
-    item::Column::SodAuditorComments,
-    item::Column::SodSignatory,
-    item::Column::SodDesignation,
-    item::Column::SodPlace,
-    item::Column::ShpNseSymbol,
-    item::Column::ShpScripCode,
-    item::Column::ShpMseiSymbol,
-    item::Column::ShpIsin,
-    item::Column::ShpCompanyName,
-    item::Column::ShpClassOfSecurity,
-    item::Column::ShpTypeOfReport,
-    item::Column::ShpFiledUnder,
-    item::Column::ShpPromoterPct,
-    item::Column::ShpPublicPct,
-    item::Column::ShpPromoterShares,
-    item::Column::ShpPublicShares,
-    item::Column::ScrNseSymbol,
-    item::Column::ScrScripCode,
-    item::Column::ScrMseiSymbol,
-    item::Column::ScrIsin,
-    item::Column::ScrCompanyName,
-    item::Column::ScrObservationsReported,
-    item::Column::ScrPreviousObservations,
-    item::Column::ScrActionsTaken,
-    item::Column::ScrCertifyingFirm,
-    item::Column::ScrPcsName,
-    item::Column::ScrMembershipType,
-    item::Column::ScrMembershipNumber,
-    item::Column::ScrUdin,
-    item::Column::ScrCpNumber,
-    item::Column::ScrPlace,
-    item::Column::RptNseSymbol,
-    item::Column::RptScripCode,
-    item::Column::RptMseiSymbol,
-    item::Column::RptCompanyName,
-    item::Column::RptReportingPeriod,
-    item::Column::RptHasRelatedParty,
-    item::Column::RptEnteredTransactions,
-    item::Column::RptTransactionCount,
-    item::Column::RptCounterparty,
-    item::Column::RptTransactionType,
-    item::Column::RptAmount,
-    item::Column::IcNseSymbol,
-    item::Column::IcScripCode,
-    item::Column::IcMseiSymbol,
-    item::Column::IcIsin,
-    item::Column::IcCompanyName,
-    item::Column::IcClass,
-    item::Column::IcSubmissionType,
-    item::Column::IcPendingStart,
-    item::Column::IcReceived,
-    item::Column::IcDisposed,
-    item::Column::IcPendingEnd,
-    item::Column::IcScoresId,
-    item::Column::ItNseSymbol,
-    item::Column::ItScripCode,
-    item::Column::ItMseiSymbol,
-    item::Column::ItIsin,
-    item::Column::ItCompanyName,
-    item::Column::ItRegulation,
-    item::Column::ItInstrument,
-    item::Column::ItPerson,
-    item::Column::ItCategory,
-    item::Column::ItTxnType,
-    item::Column::ItQty,
-    item::Column::ItValue,
-    item::Column::ItMode,
-    item::Column::ItPriorQty,
-    item::Column::ItPriorPct,
-    item::Column::ItPostQty,
-    item::Column::ItPostPct,
-    item::Column::ItSignatory,
-    item::Column::ItDesignation,
-    item::Column::ItExchange,
-    item::Column::IffNseSymbol,
-    item::Column::IffScripCode,
-    item::Column::IffMseiSymbol,
-    item::Column::IffIsin,
-    item::Column::IffCompanyName,
-    item::Column::IffTypeOfCompany,
-    item::Column::IffClassOfSecurity,
-    item::Column::IffReportingPeriod,
-    item::Column::IffReportingQuarter,
-    item::Column::IffAudited,
-    item::Column::IffNature,
-    item::Column::IffRevenue,
-    item::Column::IffProfit,
-    item::Column::FrNseSymbol,
-    item::Column::FrScripCode,
-    item::Column::FrMseiSymbol,
-    item::Column::FrCompanyName,
-    item::Column::FrClassOfSecurity,
-    item::Column::FrReportingQuarter,
-    item::Column::FrAudited,
-    item::Column::FrNature,
-    item::Column::FrRevenue,
-    item::Column::FrProfit,
 ];
 
 const STATUS_TEXT_COLUMNS: &[status::Column] =
@@ -219,12 +46,61 @@ impl RuneEnvRegistrar for Hook {
 fn search_nse_rss_items(ctx: &RuneEnvCtx<'_>, args: &[rune::Value]) -> Result<rune::Value, String> {
     let parsed = parse_search_args("search_nse_rss_items", args)?;
     let db = ctx.db.clone();
-    let rows = block_on_async(async move {
-        search_models::<ItemEntity, _, _>(&db, ITEM_TEXT_COLUMNS, item::Column::PubDate, &parsed)
-            .await
+    let payload = block_on_async(async move {
+        let core = search_models::<ItemEntity, _, _>(
+            &db,
+            ITEM_TEXT_COLUMNS,
+            item::Column::PubDate,
+            &parsed,
+        )
+        .await?;
+        let mut ids: HashSet<i64> = core.iter().map(|row| row.id).collect();
+        ids.extend(extras::search_satellite_item_ids(&db, &parsed.query, parsed.limit).await?);
+        let id_list: Vec<i64> = ids.into_iter().collect();
+        let mut select = ItemEntity::find().filter(item::Column::Id.is_in(id_list));
+        if let Some(from) = parsed.from {
+            select = select.filter(item::Column::PubDate.gte(from));
+        }
+        if let Some(to) = parsed.to {
+            select = select.filter(item::Column::PubDate.lte(to));
+        }
+        let rows = select
+            .order_by_desc(item::Column::PubDate)
+            .limit(parsed.limit)
+            .all(&db)
+            .await?;
+        let mut by_kind: HashMap<String, Vec<i64>> = HashMap::new();
+        for row in &rows {
+            by_kind
+                .entry(row.feed_kind.clone())
+                .or_default()
+                .push(row.id);
+        }
+        let mut extras_map = HashMap::new();
+        for (slug, kind_ids) in by_kind {
+            if let Some(kind) = NseFeedKind::from_slug(&slug) {
+                extras_map.extend(extras::load_map(&db, kind, &kind_ids).await?);
+            }
+        }
+        let results: Vec<_> = rows
+            .iter()
+            .map(|row| {
+                let mut value = compact_json(row);
+                if let Some(extra) = extras_map.get(&row.id)
+                    && let serde_json::Value::Object(map) = &mut value
+                {
+                    map.insert(
+                        extra.json_name().to_string(),
+                        compact_json(&extra.to_json()),
+                    );
+                }
+                value
+            })
+            .collect();
+        Ok::<_, sea_orm::DbErr>(json!({ "results": results }))
     })
     .map_err(|e| e.to_string())?;
-    json_to_rune(results_json(&rows))
+    json_to_rune(payload)
 }
 
 fn search_nse_feed_status(

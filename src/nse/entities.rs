@@ -1,5 +1,24 @@
+pub mod announcements;
+pub mod annual_reports;
+pub mod brsr;
+pub mod corporate_actions;
+pub mod daily_buyback;
+pub mod financial_results;
+pub mod insider_trading;
+pub mod integrated_filing_financials;
+pub mod investor_complaints;
 pub mod item;
+pub mod reason_for_encumbrance;
+pub mod regulation_29;
+pub mod regulation_31;
+pub mod related_party_transactions;
+pub mod secretarial_compliance;
+pub mod share_transfers;
+pub mod shareholding_pattern;
+pub mod statement_of_deviation;
 pub mod status;
+pub mod unitholding_patterns;
+pub mod voting_results;
 
 pub use item::Entity as ItemEntity;
 pub use item::Model as Item;

@@ -4,7 +4,9 @@ use sea_orm::ActiveValue::Set;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-use super::entities::item::{ActiveModel as ItemAM, Column as ItemColumn, Model as ItemModel};
+use super::entities::statement_of_deviation::{
+    ActiveModel as SodAM, Column as SodColumn, Model as SodModel,
+};
 use super::xbrl::{
     XbrlFact, all_text_facts, opt_date, opt_str, set_opt, set_opt_date, take, take_date,
 };
@@ -133,41 +135,32 @@ impl SodFacts {
             || self.quarter_ended.is_some()
     }
 
-    pub fn apply(&self, am: &mut ItemAM) {
-        set_opt(&mut am.sod_nse_symbol, &self.nse_symbol);
-        set_opt(&mut am.sod_scrip_code, &self.scrip_code);
-        set_opt(&mut am.sod_msei_symbol, &self.msei_symbol);
-        set_opt(&mut am.sod_isin, &self.isin);
-        set_opt(&mut am.sod_company_name, &self.company_name);
-        set_opt(&mut am.sod_statement_count, &self.statement_count);
-        set_opt_date(&mut am.sod_quarter_ended, self.quarter_ended);
-        set_opt(&mut am.sod_mode_of_fund_raising, &self.mode_of_fund_raising);
-        set_opt_date(
-            &mut am.sod_date_of_funds_raising,
-            self.date_of_funds_raising,
-        );
-        set_opt(&mut am.sod_amount_raised, &self.amount_raised);
-        set_opt(&mut am.sod_monitoring_agency, &self.monitoring_agency);
+    pub fn apply(&self, am: &mut SodAM) {
+        set_opt(&mut am.nse_symbol, &self.nse_symbol);
+        set_opt(&mut am.scrip_code, &self.scrip_code);
+        set_opt(&mut am.msei_symbol, &self.msei_symbol);
+        set_opt(&mut am.isin, &self.isin);
+        set_opt(&mut am.company_name, &self.company_name);
+        set_opt(&mut am.statement_count, &self.statement_count);
+        set_opt_date(&mut am.quarter_ended, self.quarter_ended);
+        set_opt(&mut am.mode_of_fund_raising, &self.mode_of_fund_raising);
+        set_opt_date(&mut am.date_of_funds_raising, self.date_of_funds_raising);
+        set_opt(&mut am.amount_raised, &self.amount_raised);
+        set_opt(&mut am.monitoring_agency, &self.monitoring_agency);
+        set_opt(&mut am.monitoring_agency_name, &self.monitoring_agency_name);
+        set_opt(&mut am.has_deviation, &self.has_deviation);
+        set_opt(&mut am.deviation_explanation, &self.deviation_explanation);
+        set_opt(&mut am.shareholder_approved, &self.shareholder_approved);
         set_opt(
-            &mut am.sod_monitoring_agency_name,
-            &self.monitoring_agency_name,
-        );
-        set_opt(&mut am.sod_has_deviation, &self.has_deviation);
-        set_opt(
-            &mut am.sod_deviation_explanation,
-            &self.deviation_explanation,
-        );
-        set_opt(&mut am.sod_shareholder_approved, &self.shareholder_approved);
-        set_opt(
-            &mut am.sod_audit_committee_comments,
+            &mut am.audit_committee_comments,
             &self.audit_committee_comments,
         );
-        set_opt(&mut am.sod_auditor_comments, &self.auditor_comments);
-        am.sod_objects = Set(serde_json::to_value(&self.objects).ok());
-        set_opt(&mut am.sod_signatory, &self.signatory);
-        set_opt(&mut am.sod_designation, &self.designation);
-        set_opt(&mut am.sod_place, &self.place);
-        set_opt_date(&mut am.sod_date_of_signing, self.date_of_signing);
+        set_opt(&mut am.auditor_comments, &self.auditor_comments);
+        am.objects = Set(serde_json::to_value(&self.objects).ok());
+        set_opt(&mut am.signatory, &self.signatory);
+        set_opt(&mut am.designation, &self.designation);
+        set_opt(&mut am.place, &self.place);
+        set_opt_date(&mut am.date_of_signing, self.date_of_signing);
     }
 }
 
@@ -415,55 +408,55 @@ impl SodField {
         }
     }
 
-    pub fn column(self) -> ItemColumn {
+    pub fn column(self) -> SodColumn {
         match self {
-            Self::NseSymbol => ItemColumn::SodNseSymbol,
-            Self::ScripCode => ItemColumn::SodScripCode,
-            Self::MseiSymbol => ItemColumn::SodMseiSymbol,
-            Self::Isin => ItemColumn::SodIsin,
-            Self::CompanyName => ItemColumn::SodCompanyName,
-            Self::StatementCount => ItemColumn::SodStatementCount,
-            Self::QuarterEnded => ItemColumn::SodQuarterEnded,
-            Self::ModeOfFundRaising => ItemColumn::SodModeOfFundRaising,
-            Self::DateOfFundsRaising => ItemColumn::SodDateOfFundsRaising,
-            Self::AmountRaised => ItemColumn::SodAmountRaised,
-            Self::MonitoringAgency => ItemColumn::SodMonitoringAgency,
-            Self::MonitoringAgencyName => ItemColumn::SodMonitoringAgencyName,
-            Self::HasDeviation => ItemColumn::SodHasDeviation,
-            Self::DeviationExplanation => ItemColumn::SodDeviationExplanation,
-            Self::ShareholderApproved => ItemColumn::SodShareholderApproved,
-            Self::AuditCommitteeComments => ItemColumn::SodAuditCommitteeComments,
-            Self::AuditorComments => ItemColumn::SodAuditorComments,
-            Self::Signatory => ItemColumn::SodSignatory,
-            Self::Designation => ItemColumn::SodDesignation,
-            Self::Place => ItemColumn::SodPlace,
-            Self::DateOfSigning => ItemColumn::SodDateOfSigning,
+            Self::NseSymbol => SodColumn::NseSymbol,
+            Self::ScripCode => SodColumn::ScripCode,
+            Self::MseiSymbol => SodColumn::MseiSymbol,
+            Self::Isin => SodColumn::Isin,
+            Self::CompanyName => SodColumn::CompanyName,
+            Self::StatementCount => SodColumn::StatementCount,
+            Self::QuarterEnded => SodColumn::QuarterEnded,
+            Self::ModeOfFundRaising => SodColumn::ModeOfFundRaising,
+            Self::DateOfFundsRaising => SodColumn::DateOfFundsRaising,
+            Self::AmountRaised => SodColumn::AmountRaised,
+            Self::MonitoringAgency => SodColumn::MonitoringAgency,
+            Self::MonitoringAgencyName => SodColumn::MonitoringAgencyName,
+            Self::HasDeviation => SodColumn::HasDeviation,
+            Self::DeviationExplanation => SodColumn::DeviationExplanation,
+            Self::ShareholderApproved => SodColumn::ShareholderApproved,
+            Self::AuditCommitteeComments => SodColumn::AuditCommitteeComments,
+            Self::AuditorComments => SodColumn::AuditorComments,
+            Self::Signatory => SodColumn::Signatory,
+            Self::Designation => SodColumn::Designation,
+            Self::Place => SodColumn::Place,
+            Self::DateOfSigning => SodColumn::DateOfSigning,
         }
     }
 
-    pub fn display(self, item: &ItemModel) -> String {
+    pub fn display(self, item: &SodModel) -> String {
         match self {
-            Self::NseSymbol => opt_str(&item.sod_nse_symbol),
-            Self::ScripCode => opt_str(&item.sod_scrip_code),
-            Self::MseiSymbol => opt_str(&item.sod_msei_symbol),
-            Self::Isin => opt_str(&item.sod_isin),
-            Self::CompanyName => opt_str(&item.sod_company_name),
-            Self::StatementCount => opt_str(&item.sod_statement_count),
-            Self::QuarterEnded => opt_date(item.sod_quarter_ended),
-            Self::ModeOfFundRaising => opt_str(&item.sod_mode_of_fund_raising),
-            Self::DateOfFundsRaising => opt_date(item.sod_date_of_funds_raising),
-            Self::AmountRaised => opt_str(&item.sod_amount_raised),
-            Self::MonitoringAgency => opt_str(&item.sod_monitoring_agency),
-            Self::MonitoringAgencyName => opt_str(&item.sod_monitoring_agency_name),
-            Self::HasDeviation => opt_str(&item.sod_has_deviation),
-            Self::DeviationExplanation => opt_str(&item.sod_deviation_explanation),
-            Self::ShareholderApproved => opt_str(&item.sod_shareholder_approved),
-            Self::AuditCommitteeComments => opt_str(&item.sod_audit_committee_comments),
-            Self::AuditorComments => opt_str(&item.sod_auditor_comments),
-            Self::Signatory => opt_str(&item.sod_signatory),
-            Self::Designation => opt_str(&item.sod_designation),
-            Self::Place => opt_str(&item.sod_place),
-            Self::DateOfSigning => opt_date(item.sod_date_of_signing),
+            Self::NseSymbol => opt_str(&item.nse_symbol),
+            Self::ScripCode => opt_str(&item.scrip_code),
+            Self::MseiSymbol => opt_str(&item.msei_symbol),
+            Self::Isin => opt_str(&item.isin),
+            Self::CompanyName => opt_str(&item.company_name),
+            Self::StatementCount => opt_str(&item.statement_count),
+            Self::QuarterEnded => opt_date(item.quarter_ended),
+            Self::ModeOfFundRaising => opt_str(&item.mode_of_fund_raising),
+            Self::DateOfFundsRaising => opt_date(item.date_of_funds_raising),
+            Self::AmountRaised => opt_str(&item.amount_raised),
+            Self::MonitoringAgency => opt_str(&item.monitoring_agency),
+            Self::MonitoringAgencyName => opt_str(&item.monitoring_agency_name),
+            Self::HasDeviation => opt_str(&item.has_deviation),
+            Self::DeviationExplanation => opt_str(&item.deviation_explanation),
+            Self::ShareholderApproved => opt_str(&item.shareholder_approved),
+            Self::AuditCommitteeComments => opt_str(&item.audit_committee_comments),
+            Self::AuditorComments => opt_str(&item.auditor_comments),
+            Self::Signatory => opt_str(&item.signatory),
+            Self::Designation => opt_str(&item.designation),
+            Self::Place => opt_str(&item.place),
+            Self::DateOfSigning => opt_date(item.date_of_signing),
         }
     }
 }

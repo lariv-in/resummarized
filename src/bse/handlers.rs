@@ -10,12 +10,12 @@ use lariv_rs::{
     template::RenderAppPane,
     web::{Htmx, QueryPage, html_built_page_or_app_layout, html_built_page_with_slots},
 };
-use sea_orm::{ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder};
+use sea_orm::{ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter};
 use serde::Deserialize;
 
 use super::{
-    description::DescriptionField,
     entities::item::{self, Entity as ItemEntity},
+    extras,
     feeds::{BseFeedKind, item_document_link},
     fetch,
     keys::ItemTableKey,
@@ -36,19 +36,6 @@ fn path_and_query(uri: &Uri) -> String {
     uri.path_and_query()
         .map(|pq| pq.as_str().to_string())
         .unwrap_or_else(|| uri.path().to_string())
-}
-
-fn sort_direction(sort: &str, key: &str) -> Option<bool> {
-    let sort = sort.trim();
-    let desc = format!("{key} DESC");
-    let asc = format!("{key} ASC");
-    if sort.eq_ignore_ascii_case(&desc) {
-        Some(true)
-    } else if sort.eq_ignore_ascii_case(&asc) || sort.eq_ignore_ascii_case(key) {
-        Some(false)
-    } else {
-        None
-    }
 }
 
 fn truncate(s: &str, max_chars: usize) -> String {
@@ -79,34 +66,13 @@ pub async fn list(
         return Redirect::to(&default_feed_url()).into_response();
     };
 
-    let extra_fields = kind.extra_list_fields();
     let show_description = kind.shows_description_column();
-    let mut query = ItemEntity::find().filter(item::Column::FeedKind.eq(kind.slug()));
     let sort = q.sort.as_deref().unwrap_or("").trim();
-    query = if let Some(desc) = sort_direction(sort, "Title") {
-        if desc {
-            query.order_by_desc(item::Column::Title)
-        } else {
-            query.order_by_asc(item::Column::Title)
-        }
-    } else if let Some(desc) = sort_direction(sort, "PubDate") {
-        if desc {
-            query.order_by_desc(item::Column::PubDate)
-        } else {
-            query.order_by_asc(item::Column::PubDate)
-        }
-    } else if let Some((desc, field)) = extra_fields
-        .iter()
-        .find_map(|f| sort_direction(sort, f.sort_key()).map(|d| (d, *f)))
-    {
-        if desc {
-            query.order_by_desc(field.column())
-        } else {
-            query.order_by_asc(field.column())
-        }
-    } else {
-        query.order_by_desc(item::Column::Id)
-    };
+    let query = extras::apply_sort(
+        ItemEntity::find().filter(item::Column::FeedKind.eq(kind.slug())),
+        kind,
+        sort,
+    );
 
     let page_num = q.page.get();
     let paginator = query.paginate(&state.db, DEFAULT_PAGE_SIZE as u64);
@@ -115,13 +81,17 @@ pub async fn list(
         .fetch_page((page_num as u64).saturating_sub(1))
         .await
         .unwrap_or_default();
+    let ids: Vec<i64> = models.iter().map(|m| m.id).collect();
+    let extras_map = extras::load_map(&state.db, kind, &ids)
+        .await
+        .unwrap_or_default();
 
     let rows: Vec<FeedItemRow> = models
         .into_iter()
         .map(|m| {
-            let extra: Vec<String> = extra_fields
-                .iter()
-                .map(|f| truncate(&f.display(&m, &ctx.timezone), 140))
+            let extra = extras::extra_cells(kind, extras_map.get(&m.id), &ctx.timezone)
+                .into_iter()
+                .map(|s| truncate(&s, 140))
                 .collect();
             FeedItemRow {
                 extra,
@@ -133,12 +103,9 @@ pub async fn list(
         })
         .collect();
 
-    let extra_columns: Vec<FeedListColumn> = extra_fields
-        .iter()
-        .map(|f| FeedListColumn {
-            sort_key: f.sort_key(),
-            label: f.label(),
-        })
+    let extra_columns: Vec<FeedListColumn> = extras::extra_columns(kind)
+        .into_iter()
+        .map(|(sort_key, label)| FeedListColumn { sort_key, label })
         .collect();
 
     let page = FeedItemListPage {
@@ -183,13 +150,11 @@ pub async fn detail(
     if item.feed_kind != kind.slug() {
         return Redirect::to(&feed_list_url(kind.slug())).into_response();
     }
-    let extra_fields: Vec<(String, String)> = DescriptionField::ALL
-        .iter()
-        .filter_map(|f| {
-            let value = f.display(&item, &ctx.timezone);
-            (!value.is_empty()).then(|| (f.label().to_string(), value))
-        })
-        .collect();
+    let extra = extras::load_map(&state.db, kind, &[item.id])
+        .await
+        .ok()
+        .and_then(|mut map| map.remove(&item.id));
+    let extra_fields = extras::detail_fields(extra.as_ref(), &ctx.timezone);
     let page = FeedItemDetailPage {
         feed_slug: kind.slug().to_string(),
         feed_name: kind.display_name().to_string(),

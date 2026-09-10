@@ -14,6 +14,7 @@ use super::{
         item::{self, ActiveModel as ItemAM, Entity as ItemEntity, Model as ItemModel},
         status::{ActiveModel as StatusAM, Entity as StatusEntity},
     },
+    extras,
     feeds::{BseFeedKind, normalize_item_link, scripcode_from_title},
     rss::{content_hash, parse_rss},
     state::BseState,
@@ -153,7 +154,7 @@ async fn fetch_and_upsert(
             }
             continue;
         }
-        let mut am = ItemAM {
+        let am = ItemAM {
             feed_kind: Set(kind.slug().to_string()),
             title: Set(entry.title),
             link: Set(link),
@@ -164,11 +165,7 @@ async fn fetch_and_upsert(
             updated_at: Set(Some(now)),
             ..Default::default()
         };
-        parsed.apply_extracted(&mut am);
-        if let Some(code) = scripcode {
-            am.scripcode = Set(Some(code));
-        }
-        ItemEntity::insert(am)
+        let insert = ItemEntity::insert(am)
             .on_conflict(
                 OnConflict::column(item::Column::ContentHash)
                     .do_nothing()
@@ -176,7 +173,17 @@ async fn fetch_and_upsert(
             )
             .exec(&state.db)
             .await?;
-        inserted += 1;
+        if insert.last_insert_id != 0 {
+            extras::upsert(
+                &state.db,
+                kind,
+                insert.last_insert_id,
+                &parsed,
+                scripcode.as_deref(),
+            )
+            .await?;
+            inserted += 1;
+        }
     }
 
     Ok((inserted, last_build))

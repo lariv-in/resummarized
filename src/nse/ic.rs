@@ -2,7 +2,9 @@
 
 use chrono::NaiveDate;
 
-use super::entities::item::{ActiveModel as ItemAM, Column as ItemColumn, Model as ItemModel};
+use super::entities::investor_complaints::{
+    ActiveModel as IcAM, Column as IcColumn, Model as IcModel,
+};
 use super::xbrl::{
     first_text_facts, opt_date, opt_str, set_opt, set_opt_date, take_clean, take_date, take_yes_no,
 };
@@ -29,20 +31,20 @@ impl IcFacts {
         self.nse_symbol.is_some() || self.company_name.is_some() || self.isin.is_some()
     }
 
-    pub fn apply(&self, am: &mut ItemAM) {
-        set_opt(&mut am.ic_nse_symbol, &self.nse_symbol);
-        set_opt(&mut am.ic_scrip_code, &self.scrip_code);
-        set_opt(&mut am.ic_msei_symbol, &self.msei_symbol);
-        set_opt(&mut am.ic_isin, &self.isin);
-        set_opt(&mut am.ic_company_name, &self.company_name);
-        set_opt(&mut am.ic_class, &self.class);
-        set_opt_date(&mut am.ic_period_end, self.period_end);
-        set_opt(&mut am.ic_submission_type, &self.submission_type);
-        set_opt(&mut am.ic_pending_start, &self.pending_start);
-        set_opt(&mut am.ic_received, &self.received);
-        set_opt(&mut am.ic_disposed, &self.disposed);
-        set_opt(&mut am.ic_pending_end, &self.pending_end);
-        set_opt(&mut am.ic_scores_id, &self.scores_id);
+    pub fn apply(&self, am: &mut IcAM) {
+        set_opt(&mut am.nse_symbol, &self.nse_symbol);
+        set_opt(&mut am.scrip_code, &self.scrip_code);
+        set_opt(&mut am.msei_symbol, &self.msei_symbol);
+        set_opt(&mut am.isin, &self.isin);
+        set_opt(&mut am.company_name, &self.company_name);
+        set_opt(&mut am.class, &self.class);
+        set_opt_date(&mut am.period_end, self.period_end);
+        set_opt(&mut am.submission_type, &self.submission_type);
+        set_opt(&mut am.pending_start, &self.pending_start);
+        set_opt(&mut am.received, &self.received);
+        set_opt(&mut am.disposed, &self.disposed);
+        set_opt(&mut am.pending_end, &self.pending_end);
+        set_opt(&mut am.scores_id, &self.scores_id);
     }
 }
 
@@ -147,39 +149,39 @@ impl IcField {
         }
     }
 
-    pub fn column(self) -> ItemColumn {
+    pub fn column(self) -> IcColumn {
         match self {
-            Self::NseSymbol => ItemColumn::IcNseSymbol,
-            Self::ScripCode => ItemColumn::IcScripCode,
-            Self::MseiSymbol => ItemColumn::IcMseiSymbol,
-            Self::Isin => ItemColumn::IcIsin,
-            Self::CompanyName => ItemColumn::IcCompanyName,
-            Self::Class => ItemColumn::IcClass,
-            Self::PeriodEnd => ItemColumn::IcPeriodEnd,
-            Self::SubmissionType => ItemColumn::IcSubmissionType,
-            Self::PendingStart => ItemColumn::IcPendingStart,
-            Self::Received => ItemColumn::IcReceived,
-            Self::Disposed => ItemColumn::IcDisposed,
-            Self::PendingEnd => ItemColumn::IcPendingEnd,
-            Self::ScoresId => ItemColumn::IcScoresId,
+            Self::NseSymbol => IcColumn::NseSymbol,
+            Self::ScripCode => IcColumn::ScripCode,
+            Self::MseiSymbol => IcColumn::MseiSymbol,
+            Self::Isin => IcColumn::Isin,
+            Self::CompanyName => IcColumn::CompanyName,
+            Self::Class => IcColumn::Class,
+            Self::PeriodEnd => IcColumn::PeriodEnd,
+            Self::SubmissionType => IcColumn::SubmissionType,
+            Self::PendingStart => IcColumn::PendingStart,
+            Self::Received => IcColumn::Received,
+            Self::Disposed => IcColumn::Disposed,
+            Self::PendingEnd => IcColumn::PendingEnd,
+            Self::ScoresId => IcColumn::ScoresId,
         }
     }
 
-    pub fn display(self, item: &ItemModel) -> String {
+    pub fn display(self, item: &IcModel) -> String {
         match self {
-            Self::NseSymbol => opt_str(&item.ic_nse_symbol),
-            Self::ScripCode => opt_str(&item.ic_scrip_code),
-            Self::MseiSymbol => opt_str(&item.ic_msei_symbol),
-            Self::Isin => opt_str(&item.ic_isin),
-            Self::CompanyName => opt_str(&item.ic_company_name),
-            Self::Class => opt_str(&item.ic_class),
-            Self::PeriodEnd => opt_date(item.ic_period_end),
-            Self::SubmissionType => opt_str(&item.ic_submission_type),
-            Self::PendingStart => opt_str(&item.ic_pending_start),
-            Self::Received => opt_str(&item.ic_received),
-            Self::Disposed => opt_str(&item.ic_disposed),
-            Self::PendingEnd => opt_str(&item.ic_pending_end),
-            Self::ScoresId => opt_str(&item.ic_scores_id),
+            Self::NseSymbol => opt_str(&item.nse_symbol),
+            Self::ScripCode => opt_str(&item.scrip_code),
+            Self::MseiSymbol => opt_str(&item.msei_symbol),
+            Self::Isin => opt_str(&item.isin),
+            Self::CompanyName => opt_str(&item.company_name),
+            Self::Class => opt_str(&item.class),
+            Self::PeriodEnd => opt_date(item.period_end),
+            Self::SubmissionType => opt_str(&item.submission_type),
+            Self::PendingStart => opt_str(&item.pending_start),
+            Self::Received => opt_str(&item.received),
+            Self::Disposed => opt_str(&item.disposed),
+            Self::PendingEnd => opt_str(&item.pending_end),
+            Self::ScoresId => opt_str(&item.scores_id),
         }
     }
 }

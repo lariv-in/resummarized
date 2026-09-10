@@ -4,6 +4,7 @@ use super::BseTag;
 
 mod m00001_create_bse;
 mod m00002_pg_trgm;
+mod m00003_split_feed_tables;
 
 #[derive(Clone, Copy, Default)]
 pub struct Migrator;
@@ -14,6 +15,7 @@ impl MigratorTrait for Migrator {
         vec![
             Box::new(m00001_create_bse::Migration),
             Box::new(m00002_pg_trgm::Migration),
+            Box::new(m00003_split_feed_tables::Migration),
         ]
     }
 }

@@ -3,7 +3,9 @@
 use chrono::NaiveDate;
 use std::collections::HashMap;
 
-use super::entities::item::{ActiveModel as ItemAM, Column as ItemColumn, Model as ItemModel};
+use super::entities::secretarial_compliance::{
+    ActiveModel as ScrAM, Column as ScrColumn, Model as ScrModel,
+};
 use super::xbrl::{first_text_facts, opt_date, opt_str, set_opt, set_opt_date, take, take_date};
 
 /// Document-level identity, FY, observation flags, and PCS sign-off.
@@ -35,32 +37,26 @@ impl ScrFacts {
         self.nse_symbol.is_some() || self.isin.is_some() || self.company_name.is_some()
     }
 
-    pub fn apply(&self, am: &mut ItemAM) {
-        set_opt(&mut am.scr_nse_symbol, &self.nse_symbol);
-        set_opt(&mut am.scr_scrip_code, &self.scrip_code);
-        set_opt(&mut am.scr_msei_symbol, &self.msei_symbol);
-        set_opt(&mut am.scr_isin, &self.isin);
-        set_opt(&mut am.scr_company_name, &self.company_name);
-        set_opt_date(&mut am.scr_fy_start, self.fy_start);
-        set_opt_date(&mut am.scr_fy_end, self.fy_end);
-        set_opt_date(&mut am.scr_date_of_report, self.date_of_report);
-        set_opt(
-            &mut am.scr_observations_reported,
-            &self.observations_reported,
-        );
-        set_opt(
-            &mut am.scr_previous_observations,
-            &self.previous_observations,
-        );
-        set_opt(&mut am.scr_actions_taken, &self.actions_taken);
-        set_opt(&mut am.scr_certifying_firm, &self.certifying_firm);
-        set_opt(&mut am.scr_pcs_name, &self.pcs_name);
-        set_opt(&mut am.scr_membership_type, &self.membership_type);
-        set_opt(&mut am.scr_membership_number, &self.membership_number);
-        set_opt(&mut am.scr_udin, &self.udin);
-        set_opt(&mut am.scr_cp_number, &self.cp_number);
-        set_opt(&mut am.scr_place, &self.place);
-        set_opt_date(&mut am.scr_pcs_report_date, self.pcs_report_date);
+    pub fn apply(&self, am: &mut ScrAM) {
+        set_opt(&mut am.nse_symbol, &self.nse_symbol);
+        set_opt(&mut am.scrip_code, &self.scrip_code);
+        set_opt(&mut am.msei_symbol, &self.msei_symbol);
+        set_opt(&mut am.isin, &self.isin);
+        set_opt(&mut am.company_name, &self.company_name);
+        set_opt_date(&mut am.fy_start, self.fy_start);
+        set_opt_date(&mut am.fy_end, self.fy_end);
+        set_opt_date(&mut am.date_of_report, self.date_of_report);
+        set_opt(&mut am.observations_reported, &self.observations_reported);
+        set_opt(&mut am.previous_observations, &self.previous_observations);
+        set_opt(&mut am.actions_taken, &self.actions_taken);
+        set_opt(&mut am.certifying_firm, &self.certifying_firm);
+        set_opt(&mut am.pcs_name, &self.pcs_name);
+        set_opt(&mut am.membership_type, &self.membership_type);
+        set_opt(&mut am.membership_number, &self.membership_number);
+        set_opt(&mut am.udin, &self.udin);
+        set_opt(&mut am.cp_number, &self.cp_number);
+        set_opt(&mut am.place, &self.place);
+        set_opt_date(&mut am.pcs_report_date, self.pcs_report_date);
     }
 }
 
@@ -208,51 +204,51 @@ impl ScrField {
         }
     }
 
-    pub fn column(self) -> ItemColumn {
+    pub fn column(self) -> ScrColumn {
         match self {
-            Self::NseSymbol => ItemColumn::ScrNseSymbol,
-            Self::ScripCode => ItemColumn::ScrScripCode,
-            Self::MseiSymbol => ItemColumn::ScrMseiSymbol,
-            Self::Isin => ItemColumn::ScrIsin,
-            Self::CompanyName => ItemColumn::ScrCompanyName,
-            Self::FyStart => ItemColumn::ScrFyStart,
-            Self::FyEnd => ItemColumn::ScrFyEnd,
-            Self::DateOfReport => ItemColumn::ScrDateOfReport,
-            Self::ObservationsReported => ItemColumn::ScrObservationsReported,
-            Self::PreviousObservations => ItemColumn::ScrPreviousObservations,
-            Self::ActionsTaken => ItemColumn::ScrActionsTaken,
-            Self::CertifyingFirm => ItemColumn::ScrCertifyingFirm,
-            Self::PcsName => ItemColumn::ScrPcsName,
-            Self::MembershipType => ItemColumn::ScrMembershipType,
-            Self::MembershipNumber => ItemColumn::ScrMembershipNumber,
-            Self::Udin => ItemColumn::ScrUdin,
-            Self::CpNumber => ItemColumn::ScrCpNumber,
-            Self::Place => ItemColumn::ScrPlace,
-            Self::PcsReportDate => ItemColumn::ScrPcsReportDate,
+            Self::NseSymbol => ScrColumn::NseSymbol,
+            Self::ScripCode => ScrColumn::ScripCode,
+            Self::MseiSymbol => ScrColumn::MseiSymbol,
+            Self::Isin => ScrColumn::Isin,
+            Self::CompanyName => ScrColumn::CompanyName,
+            Self::FyStart => ScrColumn::FyStart,
+            Self::FyEnd => ScrColumn::FyEnd,
+            Self::DateOfReport => ScrColumn::DateOfReport,
+            Self::ObservationsReported => ScrColumn::ObservationsReported,
+            Self::PreviousObservations => ScrColumn::PreviousObservations,
+            Self::ActionsTaken => ScrColumn::ActionsTaken,
+            Self::CertifyingFirm => ScrColumn::CertifyingFirm,
+            Self::PcsName => ScrColumn::PcsName,
+            Self::MembershipType => ScrColumn::MembershipType,
+            Self::MembershipNumber => ScrColumn::MembershipNumber,
+            Self::Udin => ScrColumn::Udin,
+            Self::CpNumber => ScrColumn::CpNumber,
+            Self::Place => ScrColumn::Place,
+            Self::PcsReportDate => ScrColumn::PcsReportDate,
         }
     }
 
-    pub fn display(self, item: &ItemModel) -> String {
+    pub fn display(self, item: &ScrModel) -> String {
         match self {
-            Self::NseSymbol => opt_str(&item.scr_nse_symbol),
-            Self::ScripCode => opt_str(&item.scr_scrip_code),
-            Self::MseiSymbol => opt_str(&item.scr_msei_symbol),
-            Self::Isin => opt_str(&item.scr_isin),
-            Self::CompanyName => opt_str(&item.scr_company_name),
-            Self::FyStart => opt_date(item.scr_fy_start),
-            Self::FyEnd => opt_date(item.scr_fy_end),
-            Self::DateOfReport => opt_date(item.scr_date_of_report),
-            Self::ObservationsReported => opt_str(&item.scr_observations_reported),
-            Self::PreviousObservations => opt_str(&item.scr_previous_observations),
-            Self::ActionsTaken => opt_str(&item.scr_actions_taken),
-            Self::CertifyingFirm => opt_str(&item.scr_certifying_firm),
-            Self::PcsName => opt_str(&item.scr_pcs_name),
-            Self::MembershipType => opt_str(&item.scr_membership_type),
-            Self::MembershipNumber => opt_str(&item.scr_membership_number),
-            Self::Udin => opt_str(&item.scr_udin),
-            Self::CpNumber => opt_str(&item.scr_cp_number),
-            Self::Place => opt_str(&item.scr_place),
-            Self::PcsReportDate => opt_date(item.scr_pcs_report_date),
+            Self::NseSymbol => opt_str(&item.nse_symbol),
+            Self::ScripCode => opt_str(&item.scrip_code),
+            Self::MseiSymbol => opt_str(&item.msei_symbol),
+            Self::Isin => opt_str(&item.isin),
+            Self::CompanyName => opt_str(&item.company_name),
+            Self::FyStart => opt_date(item.fy_start),
+            Self::FyEnd => opt_date(item.fy_end),
+            Self::DateOfReport => opt_date(item.date_of_report),
+            Self::ObservationsReported => opt_str(&item.observations_reported),
+            Self::PreviousObservations => opt_str(&item.previous_observations),
+            Self::ActionsTaken => opt_str(&item.actions_taken),
+            Self::CertifyingFirm => opt_str(&item.certifying_firm),
+            Self::PcsName => opt_str(&item.pcs_name),
+            Self::MembershipType => opt_str(&item.membership_type),
+            Self::MembershipNumber => opt_str(&item.membership_number),
+            Self::Udin => opt_str(&item.udin),
+            Self::CpNumber => opt_str(&item.cp_number),
+            Self::Place => opt_str(&item.place),
+            Self::PcsReportDate => opt_date(item.pcs_report_date),
         }
     }
 }

@@ -1,31 +1,24 @@
 //! Rune sandbox bindings for BSE RSS trigram search.
 
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use lariv_rs::rune_env::{
     NativeBinding, RuneEnvCapability, RuneEnvCtx, RuneEnvRegistrar, block_on_async, json_to_rune,
 };
+use sea_orm::{ColumnTrait, EntityTrait, QueryFilter, QueryOrder, QuerySelect};
+use serde_json::json;
 
 use crate::bse::entities::item::{self, Entity as ItemEntity};
 use crate::bse::entities::status::{self, Entity as StatusEntity};
-use crate::search::{parse_search_args, results_json, search_models};
+use crate::bse::extras;
+use crate::bse::feeds::BseFeedKind;
+use crate::search::{compact_json, parse_search_args, results_json, search_models};
 
 const ITEM_TEXT_COLUMNS: &[item::Column] = &[
     item::Column::FeedKind,
     item::Column::Title,
     item::Column::Description,
-    item::Column::Scripcode,
-    item::Column::MeetingType,
-    item::Column::Purpose,
-    item::Column::Segment,
-    item::Column::TypeOfSecurity,
-    item::Column::AuditedUnaudited,
-    item::Column::StandaloneConsolidated,
-    item::Column::IndAs,
-    item::Column::PromoterAndGroup,
-    item::Column::PublicVal,
-    item::Column::Emptr,
-    item::Column::Status,
 ];
 
 const STATUS_TEXT_COLUMNS: &[status::Column] =
@@ -53,12 +46,61 @@ impl RuneEnvRegistrar for Hook {
 fn search_bse_rss_items(ctx: &RuneEnvCtx<'_>, args: &[rune::Value]) -> Result<rune::Value, String> {
     let parsed = parse_search_args("search_bse_rss_items", args)?;
     let db = ctx.db.clone();
-    let rows = block_on_async(async move {
-        search_models::<ItemEntity, _, _>(&db, ITEM_TEXT_COLUMNS, item::Column::PubDate, &parsed)
-            .await
+    let payload = block_on_async(async move {
+        let core = search_models::<ItemEntity, _, _>(
+            &db,
+            ITEM_TEXT_COLUMNS,
+            item::Column::PubDate,
+            &parsed,
+        )
+        .await?;
+        let mut ids: HashSet<i64> = core.iter().map(|row| row.id).collect();
+        ids.extend(extras::search_satellite_item_ids(&db, &parsed.query, parsed.limit).await?);
+        let id_list: Vec<i64> = ids.into_iter().collect();
+        let mut select = ItemEntity::find().filter(item::Column::Id.is_in(id_list));
+        if let Some(from) = parsed.from {
+            select = select.filter(item::Column::PubDate.gte(from));
+        }
+        if let Some(to) = parsed.to {
+            select = select.filter(item::Column::PubDate.lte(to));
+        }
+        let rows = select
+            .order_by_desc(item::Column::PubDate)
+            .limit(parsed.limit)
+            .all(&db)
+            .await?;
+        let mut by_kind: HashMap<String, Vec<i64>> = HashMap::new();
+        for row in &rows {
+            by_kind
+                .entry(row.feed_kind.clone())
+                .or_default()
+                .push(row.id);
+        }
+        let mut extras_map = HashMap::new();
+        for (slug, kind_ids) in by_kind {
+            if let Some(kind) = BseFeedKind::from_slug(&slug) {
+                extras_map.extend(extras::load_map(&db, kind, &kind_ids).await?);
+            }
+        }
+        let results: Vec<_> = rows
+            .iter()
+            .map(|row| {
+                let mut value = compact_json(row);
+                if let Some(extra) = extras_map.get(&row.id)
+                    && let serde_json::Value::Object(map) = &mut value
+                {
+                    map.insert(
+                        extra.json_name().to_string(),
+                        compact_json(&extra.to_json()),
+                    );
+                }
+                value
+            })
+            .collect();
+        Ok::<_, sea_orm::DbErr>(json!({ "results": results }))
     })
     .map_err(|e| e.to_string())?;
-    json_to_rune(results_json(&rows))
+    json_to_rune(payload)
 }
 
 fn search_bse_feed_status(

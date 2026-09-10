@@ -5,6 +5,7 @@ pub mod brsr;
 pub mod config;
 pub mod description;
 pub mod entities;
+pub mod extras;
 pub mod feeds;
 pub mod fetch;
 pub mod fr;
