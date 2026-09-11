@@ -165,6 +165,15 @@ impl UhpField {
             Self::FyEnd => opt_date(item.fy_end),
         }
     }
+
+    pub fn filter_kind(self) -> crate::list_filters::FilterKind {
+        match self {
+            Self::ReportingPeriodStart | Self::DateOfReport | Self::FyStart | Self::FyEnd => {
+                crate::list_filters::FilterKind::Date
+            }
+            _ => crate::list_filters::FilterKind::Text,
+        }
+    }
 }
 
 #[cfg(test)]

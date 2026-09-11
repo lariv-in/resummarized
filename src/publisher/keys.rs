@@ -8,3 +8,7 @@ lariv_rs::swap_key!(
     SubscriberDeleteModalKey,
     "publisher-subscriber-delete-modal"
 );
+lariv_rs::swap_key!(
+    SubscriberSendEmailModalKey,
+    "publisher-subscriber-send-email-modal"
+);

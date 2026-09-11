@@ -18,6 +18,10 @@ use super::entities::{
     insider_trading, item, shareholding_pattern, voting_results,
 };
 use super::feeds::BseFeedKind;
+use crate::list_filters::{
+    FilterField, FilterKind, apply_datetime_day, apply_text_contains, apply_value_filter,
+    filter_value,
+};
 
 #[derive(Clone, Debug)]
 pub enum ExtraRow {
@@ -202,11 +206,36 @@ fn order<C: ColumnTrait>(query: Select<item::Entity>, col: C, desc: bool) -> Sel
 
 fn join_order<C: ColumnTrait>(
     query: Select<item::Entity>,
-    rel: sea_orm::RelationDef,
+    _rel: sea_orm::RelationDef,
     col: C,
     desc: bool,
 ) -> Select<item::Entity> {
-    order(query.join(JoinType::LeftJoin, rel), col, desc)
+    order(query, col, desc)
+}
+
+pub fn satellite_relation(kind: BseFeedKind) -> Option<sea_orm::RelationDef> {
+    Some(match kind {
+        BseFeedKind::Announcements => item::Relation::Announcements.def(),
+        BseFeedKind::AnnualReports => item::Relation::AnnualReports.def(),
+        BseFeedKind::BoardMeetings => item::Relation::BoardMeetings.def(),
+        BseFeedKind::CorporateActions => item::Relation::CorporateActions.def(),
+        BseFeedKind::FinancialResults => item::Relation::FinancialResults.def(),
+        BseFeedKind::InsiderTrading => item::Relation::InsiderTrading.def(),
+        BseFeedKind::ShareholdingPattern => item::Relation::ShareholdingPattern.def(),
+        BseFeedKind::VotingResults => item::Relation::VotingResults.def(),
+        BseFeedKind::Sensex
+        | BseFeedKind::Notices
+        | BseFeedKind::MediaRelease
+        | BseFeedKind::IndexMediaRelease => return None,
+    })
+}
+
+pub fn list_select(kind: BseFeedKind) -> Select<item::Entity> {
+    let query = item::Entity::find().filter(item::Column::FeedKind.eq(kind.slug()));
+    match satellite_relation(kind) {
+        Some(rel) => query.join(JoinType::LeftJoin, rel),
+        None => query,
+    }
 }
 
 pub fn apply_sort(
@@ -220,6 +249,9 @@ pub fn apply_sort(
     if let Some(desc) = sort_direction(sort, "PubDate") {
         return order(query, item::Column::PubDate, desc);
     }
+    if let Some(desc) = sort_direction(sort, "Description") {
+        return order(query, item::Column::Description, desc);
+    }
     if let Some((desc, field)) = kind
         .extra_list_fields()
         .iter()
@@ -229,6 +261,28 @@ pub fn apply_sort(
         return sorted;
     }
     query.order_by_desc(item::Column::Id)
+}
+
+pub fn apply_filters(
+    mut query: Select<item::Entity>,
+    kind: BseFeedKind,
+    filters: &HashMap<String, String>,
+) -> Select<item::Entity> {
+    if let Some(v) = filter_value(filters, "Title") {
+        query = apply_text_contains(query, item::Column::Title, v);
+    }
+    if let Some(v) = filter_value(filters, "PubDate") {
+        query = apply_datetime_day(query, item::Column::PubDate, v);
+    }
+    if let Some(v) = filter_value(filters, "Description") {
+        query = apply_text_contains(query, item::Column::Description, v);
+    }
+    for field in kind.extra_list_fields() {
+        if let Some(v) = filter_value(filters, field.sort_key()) {
+            query = desc_filter(query, kind, *field, v);
+        }
+    }
+    query
 }
 
 fn desc_sort(
@@ -440,11 +494,189 @@ fn desc_sort(
     })
 }
 
-pub fn extra_columns(kind: BseFeedKind) -> Vec<(&'static str, &'static str)> {
+fn desc_filter(
+    query: Select<item::Entity>,
+    kind: BseFeedKind,
+    field: DescriptionField,
+    value: &str,
+) -> Select<item::Entity> {
+    let kind_v = field.value_kind();
+    match (kind, field) {
+        (BseFeedKind::Announcements, DescriptionField::Scripcode) => {
+            apply_value_filter(query, announcements::Column::Scripcode, kind_v, value)
+        }
+        (BseFeedKind::AnnualReports, DescriptionField::Scripcode) => {
+            apply_value_filter(query, annual_reports::Column::Scripcode, kind_v, value)
+        }
+        (BseFeedKind::AnnualReports, DescriptionField::AsOnDate) => {
+            apply_value_filter(query, annual_reports::Column::AsOnDate, kind_v, value)
+        }
+        (BseFeedKind::BoardMeetings, DescriptionField::Scripcode) => {
+            apply_value_filter(query, board_meetings::Column::Scripcode, kind_v, value)
+        }
+        (BseFeedKind::BoardMeetings, DescriptionField::MeetingDate) => {
+            apply_value_filter(query, board_meetings::Column::MeetingDate, kind_v, value)
+        }
+        (BseFeedKind::BoardMeetings, DescriptionField::Purpose) => {
+            apply_value_filter(query, board_meetings::Column::Purpose, kind_v, value)
+        }
+        (BseFeedKind::CorporateActions, DescriptionField::Scripcode) => {
+            apply_value_filter(query, corporate_actions::Column::Scripcode, kind_v, value)
+        }
+        (BseFeedKind::CorporateActions, DescriptionField::Segment) => {
+            apply_value_filter(query, corporate_actions::Column::Segment, kind_v, value)
+        }
+        (BseFeedKind::CorporateActions, DescriptionField::Purpose) => {
+            apply_value_filter(query, corporate_actions::Column::Purpose, kind_v, value)
+        }
+        (BseFeedKind::CorporateActions, DescriptionField::RdDate) => {
+            apply_value_filter(query, corporate_actions::Column::RdDate, kind_v, value)
+        }
+        (BseFeedKind::CorporateActions, DescriptionField::BcStartDate) => {
+            apply_value_filter(query, corporate_actions::Column::BcStartDate, kind_v, value)
+        }
+        (BseFeedKind::CorporateActions, DescriptionField::BcEndDate) => {
+            apply_value_filter(query, corporate_actions::Column::BcEndDate, kind_v, value)
+        }
+        (BseFeedKind::CorporateActions, DescriptionField::NdStartDate) => {
+            apply_value_filter(query, corporate_actions::Column::NdStartDate, kind_v, value)
+        }
+        (BseFeedKind::CorporateActions, DescriptionField::NdEndDate) => {
+            apply_value_filter(query, corporate_actions::Column::NdEndDate, kind_v, value)
+        }
+        (BseFeedKind::CorporateActions, DescriptionField::ActualPaymentDate) => apply_value_filter(
+            query,
+            corporate_actions::Column::ActualPaymentDate,
+            kind_v,
+            value,
+        ),
+        (BseFeedKind::FinancialResults, DescriptionField::Scripcode) => {
+            apply_value_filter(query, financial_results::Column::Scripcode, kind_v, value)
+        }
+        (BseFeedKind::FinancialResults, DescriptionField::AuditedUnaudited) => apply_value_filter(
+            query,
+            financial_results::Column::AuditedUnaudited,
+            kind_v,
+            value,
+        ),
+        (BseFeedKind::FinancialResults, DescriptionField::StandaloneConsolidated) => {
+            apply_value_filter(
+                query,
+                financial_results::Column::StandaloneConsolidated,
+                kind_v,
+                value,
+            )
+        }
+        (BseFeedKind::FinancialResults, DescriptionField::PeriodStartDate) => apply_value_filter(
+            query,
+            financial_results::Column::PeriodStartDate,
+            kind_v,
+            value,
+        ),
+        (BseFeedKind::FinancialResults, DescriptionField::PeriodEndDate) => apply_value_filter(
+            query,
+            financial_results::Column::PeriodEndDate,
+            kind_v,
+            value,
+        ),
+        (BseFeedKind::FinancialResults, DescriptionField::IndAs) => {
+            apply_value_filter(query, financial_results::Column::IndAs, kind_v, value)
+        }
+        (BseFeedKind::InsiderTrading, DescriptionField::Scripcode) => {
+            apply_value_filter(query, insider_trading::Column::Scripcode, kind_v, value)
+        }
+        (BseFeedKind::InsiderTrading, DescriptionField::TypeOfSecurity) => apply_value_filter(
+            query,
+            insider_trading::Column::TypeOfSecurity,
+            kind_v,
+            value,
+        ),
+        (BseFeedKind::ShareholdingPattern, DescriptionField::Scripcode) => apply_value_filter(
+            query,
+            shareholding_pattern::Column::Scripcode,
+            kind_v,
+            value,
+        ),
+        (BseFeedKind::ShareholdingPattern, DescriptionField::AsOnDate) => {
+            apply_value_filter(query, shareholding_pattern::Column::AsOnDate, kind_v, value)
+        }
+        (BseFeedKind::ShareholdingPattern, DescriptionField::PromoterAndGroup) => {
+            apply_value_filter(
+                query,
+                shareholding_pattern::Column::PromoterAndGroup,
+                kind_v,
+                value,
+            )
+        }
+        (BseFeedKind::ShareholdingPattern, DescriptionField::PublicVal) => apply_value_filter(
+            query,
+            shareholding_pattern::Column::PublicVal,
+            kind_v,
+            value,
+        ),
+        (BseFeedKind::ShareholdingPattern, DescriptionField::Status) => {
+            apply_value_filter(query, shareholding_pattern::Column::Status, kind_v, value)
+        }
+        (BseFeedKind::ShareholdingPattern, DescriptionField::SubmissionDate) => apply_value_filter(
+            query,
+            shareholding_pattern::Column::SubmissionDate,
+            kind_v,
+            value,
+        ),
+        (BseFeedKind::ShareholdingPattern, DescriptionField::RevisedFilingDate) => {
+            apply_value_filter(
+                query,
+                shareholding_pattern::Column::RevisedFilingDate,
+                kind_v,
+                value,
+            )
+        }
+        (BseFeedKind::VotingResults, DescriptionField::Scripcode) => {
+            apply_value_filter(query, voting_results::Column::Scripcode, kind_v, value)
+        }
+        (BseFeedKind::VotingResults, DescriptionField::MeetingDate) => {
+            apply_value_filter(query, voting_results::Column::MeetingDate, kind_v, value)
+        }
+        (BseFeedKind::VotingResults, DescriptionField::MeetingType) => {
+            apply_value_filter(query, voting_results::Column::MeetingType, kind_v, value)
+        }
+        _ => query,
+    }
+}
+
+pub fn extra_columns(kind: BseFeedKind) -> Vec<FilterField> {
     kind.extra_list_fields()
         .iter()
-        .map(|f| (f.sort_key(), f.label()))
+        .map(|f| FilterField {
+            key: f.sort_key(),
+            label: f.label(),
+            kind: f.value_kind().filter_kind(),
+        })
         .collect()
+}
+
+pub fn filter_fields(kind: BseFeedKind) -> Vec<FilterField> {
+    let mut fields = vec![
+        FilterField {
+            key: "Title",
+            label: "Title",
+            kind: FilterKind::Text,
+        },
+        FilterField {
+            key: "PubDate",
+            label: "PubDate",
+            kind: FilterKind::Date,
+        },
+    ];
+    fields.extend(extra_columns(kind));
+    if kind.shows_description_column() {
+        fields.push(FilterField {
+            key: "Description",
+            label: "Description",
+            kind: FilterKind::Text,
+        });
+    }
+    fields
 }
 
 pub fn extra_cells(kind: BseFeedKind, extra: Option<&ExtraRow>, tz: &str) -> Vec<String> {
@@ -670,4 +902,52 @@ pub async fn search_satellite_item_ids(
         limit
     );
     Ok(ids)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::list_filters::FilterKind;
+
+    #[test]
+    fn filter_fields_include_base_columns_for_every_feed() {
+        for kind in BseFeedKind::ALL {
+            let fields = filter_fields(*kind);
+            assert_eq!(fields[0].key, "Title");
+            assert_eq!(fields[0].kind, FilterKind::Text);
+            assert_eq!(fields[1].key, "PubDate");
+            assert_eq!(fields[1].kind, FilterKind::Date);
+            let keys: Vec<_> = fields.iter().map(|f| f.key).collect();
+            if kind.shows_description_column() {
+                assert!(keys.contains(&"Description"));
+                assert_eq!(fields.last().map(|f| f.key), Some("Description"));
+            } else {
+                assert!(!keys.contains(&"Description"));
+            }
+        }
+    }
+
+    #[test]
+    fn filter_fields_include_extra_date_and_text_keys() {
+        let sensex: Vec<_> = filter_fields(BseFeedKind::Sensex)
+            .into_iter()
+            .map(|f| f.key)
+            .collect();
+        assert_eq!(sensex, vec!["Title", "PubDate"]);
+
+        let actions: Vec<_> = filter_fields(BseFeedKind::CorporateActions)
+            .into_iter()
+            .map(|f| (f.key, f.kind))
+            .collect();
+        assert!(actions.contains(&("Scripcode", FilterKind::Text)));
+        assert!(actions.contains(&("RdDate", FilterKind::Date)));
+        assert!(actions.contains(&("ActualPaymentDate", FilterKind::Date)));
+
+        let announcements: Vec<_> = filter_fields(BseFeedKind::Announcements)
+            .into_iter()
+            .map(|f| f.key)
+            .collect();
+        assert!(announcements.contains(&"Description"));
+        assert!(announcements.contains(&"Scripcode"));
+    }
 }

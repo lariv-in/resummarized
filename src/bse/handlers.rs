@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use axum::{
     extract::{Path, Query},
     http::Uri,
@@ -10,11 +12,11 @@ use lariv_rs::{
     template::RenderAppPane,
     web::{Htmx, QueryPage, html_built_page_or_app_layout, html_built_page_with_slots},
 };
-use sea_orm::{ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter};
+use sea_orm::{EntityTrait, PaginatorTrait};
 use serde::Deserialize;
 
 use super::{
-    entities::item::{self, Entity as ItemEntity},
+    entities::item::Entity as ItemEntity,
     extras,
     feeds::{BseFeedKind, item_document_link},
     fetch,
@@ -30,6 +32,8 @@ pub struct ItemListQuery {
     pub sort: Option<String>,
     #[serde(default)]
     pub page: QueryPage,
+    #[serde(flatten)]
+    pub filters: HashMap<String, String>,
 }
 
 fn path_and_query(uri: &Uri) -> String {
@@ -69,7 +73,7 @@ pub async fn list(
     let show_description = kind.shows_description_column();
     let sort = q.sort.as_deref().unwrap_or("").trim();
     let query = extras::apply_sort(
-        ItemEntity::find().filter(item::Column::FeedKind.eq(kind.slug())),
+        extras::apply_filters(extras::list_select(kind), kind, &q.filters),
         kind,
         sort,
     );
@@ -105,7 +109,10 @@ pub async fn list(
 
     let extra_columns: Vec<FeedListColumn> = extras::extra_columns(kind)
         .into_iter()
-        .map(|(sort_key, label)| FeedListColumn { sort_key, label })
+        .map(|f| FeedListColumn {
+            sort_key: f.key,
+            label: f.label,
+        })
         .collect();
 
     let page = FeedItemListPage {
@@ -115,6 +122,8 @@ pub async fn list(
         show_description,
         items: ObjectList::from_page(rows, page_num, DEFAULT_PAGE_SIZE, total),
         sort: q.sort.clone().unwrap_or_default(),
+        filter_fields: extras::filter_fields(kind),
+        filter_values: q.filters,
         path_and_query: path_and_query(&uri),
     };
     if htmx.targets::<ItemTableKey>() {

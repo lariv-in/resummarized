@@ -373,6 +373,19 @@ impl BrsrField {
             Self::CsrApplicable => opt_str(&item.csr_applicable),
         }
     }
+
+    pub fn filter_kind(self) -> crate::list_filters::FilterKind {
+        match self {
+            Self::DateOfIncorporation
+            | Self::FyStart
+            | Self::FyEnd
+            | Self::PyStart
+            | Self::PyEnd
+            | Self::PpyStart
+            | Self::PpyEnd => crate::list_filters::FilterKind::Date,
+            _ => crate::list_filters::FilterKind::Text,
+        }
+    }
 }
 
 #[cfg(test)]

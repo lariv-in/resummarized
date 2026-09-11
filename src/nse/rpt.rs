@@ -208,6 +208,15 @@ impl RptField {
             Self::Amount => opt_str(&item.amount),
         }
     }
+
+    pub fn filter_kind(self) -> crate::list_filters::FilterKind {
+        match self {
+            Self::FyStart | Self::FyEnd | Self::PeriodStart | Self::PeriodEnd => {
+                crate::list_filters::FilterKind::Date
+            }
+            _ => crate::list_filters::FilterKind::Text,
+        }
+    }
 }
 
 #[cfg(test)]

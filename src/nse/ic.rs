@@ -184,6 +184,13 @@ impl IcField {
             Self::ScoresId => opt_str(&item.scores_id),
         }
     }
+
+    pub fn filter_kind(self) -> crate::list_filters::FilterKind {
+        match self {
+            Self::PeriodEnd => crate::list_filters::FilterKind::Date,
+            _ => crate::list_filters::FilterKind::Text,
+        }
+    }
 }
 
 #[cfg(test)]

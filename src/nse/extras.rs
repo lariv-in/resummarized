@@ -33,6 +33,10 @@ use super::sod::{self, SodField, SodObjectRow};
 use super::uhp::{self, UhpField};
 use super::voting::{self, VoteField};
 use super::xbrl::{set_opt, set_opt_date};
+use crate::list_filters::{
+    FilterField, FilterKind, apply_datetime_day, apply_text_contains, apply_value_filter,
+    filter_value,
+};
 
 pub enum LinkedFacts {
     Brsr(brsr::BrsrFacts),
@@ -387,11 +391,47 @@ fn order<C: ColumnTrait>(query: Select<item::Entity>, col: C, desc: bool) -> Sel
 
 fn join_order<C: ColumnTrait>(
     query: Select<item::Entity>,
-    rel: sea_orm::RelationDef,
+    _rel: sea_orm::RelationDef,
     col: C,
     desc: bool,
 ) -> Select<item::Entity> {
-    order(query.join(JoinType::LeftJoin, rel), col, desc)
+    order(query, col, desc)
+}
+
+pub fn satellite_relation(kind: NseFeedKind) -> Option<sea_orm::RelationDef> {
+    Some(match kind {
+        NseFeedKind::Announcements => item::Relation::Announcements.def(),
+        NseFeedKind::DailyBuyback => item::Relation::DailyBuyback.def(),
+        NseFeedKind::AnnualReports => item::Relation::AnnualReports.def(),
+        NseFeedKind::CorporateActions => item::Relation::CorporateActions.def(),
+        NseFeedKind::ReasonForEncumbrance => item::Relation::ReasonForEncumbrance.def(),
+        NseFeedKind::Regulation29 => item::Relation::Regulation29.def(),
+        NseFeedKind::Regulation31 => item::Relation::Regulation31.def(),
+        NseFeedKind::ShareTransfers => item::Relation::ShareTransfers.def(),
+        NseFeedKind::Brsr => item::Relation::Brsr.def(),
+        NseFeedKind::VotingResults => item::Relation::VotingResults.def(),
+        NseFeedKind::UnitholdingPatterns => item::Relation::UnitholdingPatterns.def(),
+        NseFeedKind::StatementOfDeviation => item::Relation::StatementOfDeviation.def(),
+        NseFeedKind::ShareholdingPattern => item::Relation::ShareholdingPattern.def(),
+        NseFeedKind::SecretarialCompliance => item::Relation::SecretarialCompliance.def(),
+        NseFeedKind::RelatedPartyTransactions => item::Relation::RelatedPartyTransactions.def(),
+        NseFeedKind::InvestorComplaints => item::Relation::InvestorComplaints.def(),
+        NseFeedKind::InsiderTrading => item::Relation::InsiderTrading.def(),
+        NseFeedKind::IntegratedFilingFinancials => item::Relation::IntegratedFilingFinancials.def(),
+        NseFeedKind::FinancialResults => item::Relation::FinancialResults.def(),
+        NseFeedKind::BoardMeetings
+        | NseFeedKind::CorporateGovernance
+        | NseFeedKind::OfferDocuments
+        | NseFeedKind::Circulars => return None,
+    })
+}
+
+pub fn list_select(kind: NseFeedKind) -> Select<item::Entity> {
+    let query = item::Entity::find().filter(item::Column::FeedKind.eq(kind.slug()));
+    match satellite_relation(kind) {
+        Some(rel) => query.join(JoinType::LeftJoin, rel),
+        None => query,
+    }
 }
 
 pub fn apply_sort(
@@ -405,6 +445,9 @@ pub fn apply_sort(
     if let Some(desc) = sort_direction(sort, "PubDate") {
         return order(query, item::Column::PubDate, desc);
     }
+    if let Some(desc) = sort_direction(sort, "Description") {
+        return order(query, item::Column::Description, desc);
+    }
     if let Some((desc, field)) = kind
         .extra_list_fields()
         .iter()
@@ -414,77 +457,44 @@ pub fn apply_sort(
         return sorted;
     }
     match kind {
-        NseFeedKind::Brsr => xbrl_sort(query, sort, BrsrField::LIST, item::Relation::Brsr.def()),
-        NseFeedKind::VotingResults => xbrl_sort(
-            query,
-            sort,
-            VoteField::LIST,
-            item::Relation::VotingResults.def(),
-        ),
-        NseFeedKind::UnitholdingPatterns => xbrl_sort(
-            query,
-            sort,
-            UhpField::LIST,
-            item::Relation::UnitholdingPatterns.def(),
-        ),
-        NseFeedKind::StatementOfDeviation => xbrl_sort(
-            query,
-            sort,
-            SodField::LIST,
-            item::Relation::StatementOfDeviation.def(),
-        ),
-        NseFeedKind::ShareholdingPattern => xbrl_sort(
-            query,
-            sort,
-            ShpField::LIST,
-            item::Relation::ShareholdingPattern.def(),
-        ),
-        NseFeedKind::SecretarialCompliance => xbrl_sort(
-            query,
-            sort,
-            ScrField::LIST,
-            item::Relation::SecretarialCompliance.def(),
-        ),
-        NseFeedKind::RelatedPartyTransactions => xbrl_sort(
-            query,
-            sort,
-            RptField::LIST,
-            item::Relation::RelatedPartyTransactions.def(),
-        ),
-        NseFeedKind::InvestorComplaints => xbrl_sort(
-            query,
-            sort,
-            IcField::LIST,
-            item::Relation::InvestorComplaints.def(),
-        ),
-        NseFeedKind::InsiderTrading => xbrl_sort(
-            query,
-            sort,
-            ItField::LIST,
-            item::Relation::InsiderTrading.def(),
-        ),
-        NseFeedKind::IntegratedFilingFinancials => xbrl_sort(
-            query,
-            sort,
-            IffField::LIST,
-            item::Relation::IntegratedFilingFinancials.def(),
-        ),
-        NseFeedKind::FinancialResults => xbrl_sort(
-            query,
-            sort,
-            FrField::LIST,
-            item::Relation::FinancialResults.def(),
-        ),
+        NseFeedKind::Brsr => xbrl_sort(query, sort, BrsrField::LIST),
+        NseFeedKind::VotingResults => xbrl_sort(query, sort, VoteField::LIST),
+        NseFeedKind::UnitholdingPatterns => xbrl_sort(query, sort, UhpField::LIST),
+        NseFeedKind::StatementOfDeviation => xbrl_sort(query, sort, SodField::LIST),
+        NseFeedKind::ShareholdingPattern => xbrl_sort(query, sort, ShpField::LIST),
+        NseFeedKind::SecretarialCompliance => xbrl_sort(query, sort, ScrField::LIST),
+        NseFeedKind::RelatedPartyTransactions => xbrl_sort(query, sort, RptField::LIST),
+        NseFeedKind::InvestorComplaints => xbrl_sort(query, sort, IcField::LIST),
+        NseFeedKind::InsiderTrading => xbrl_sort(query, sort, ItField::LIST),
+        NseFeedKind::IntegratedFilingFinancials => xbrl_sort(query, sort, IffField::LIST),
+        NseFeedKind::FinancialResults => xbrl_sort(query, sort, FrField::LIST),
         _ => query.order_by_desc(item::Column::Id),
     }
 }
 
-fn xbrl_sort<F, C>(
-    query: Select<item::Entity>,
-    sort: &str,
-    fields: &[F],
-    rel: sea_orm::RelationDef,
-) -> Select<item::Entity>
+pub fn apply_filters(
+    mut query: Select<item::Entity>,
+    kind: NseFeedKind,
+    filters: &HashMap<String, String>,
+) -> Select<item::Entity> {
+    if let Some(v) = filter_value(filters, "Title") {
+        query = apply_text_contains(query, item::Column::Title, v);
+    }
+    if let Some(v) = filter_value(filters, "PubDate") {
+        query = apply_datetime_day(query, item::Column::PubDate, v);
+    }
+    if let Some(v) = filter_value(filters, "Description") {
+        query = apply_text_contains(query, item::Column::Description, v);
+    }
+    for field in kind.extra_list_fields() {
+        if let Some(v) = filter_value(filters, field.sort_key()) {
+            query = desc_filter(query, kind, *field, v);
+        }
+    }
+    xbrl_filter(query, kind, filters)
+}
+
+fn xbrl_sort<F, C>(query: Select<item::Entity>, sort: &str, fields: &[F]) -> Select<item::Entity>
 where
     F: Copy,
     F: FnIsField<C>,
@@ -494,15 +504,61 @@ where
         .iter()
         .find_map(|f| sort_direction(sort, f.sort_key()).map(|d| (d, *f)))
     {
-        join_order(query, rel, field.column(), desc)
+        order(query, field.column(), desc)
     } else {
         query.order_by_desc(item::Column::Id)
     }
 }
 
+fn xbrl_filter(
+    query: Select<item::Entity>,
+    kind: NseFeedKind,
+    filters: &HashMap<String, String>,
+) -> Select<item::Entity> {
+    match kind {
+        NseFeedKind::Brsr => xbrl_apply_filters(query, filters, BrsrField::LIST),
+        NseFeedKind::VotingResults => xbrl_apply_filters(query, filters, VoteField::LIST),
+        NseFeedKind::UnitholdingPatterns => xbrl_apply_filters(query, filters, UhpField::LIST),
+        NseFeedKind::StatementOfDeviation => xbrl_apply_filters(query, filters, SodField::LIST),
+        NseFeedKind::ShareholdingPattern => xbrl_apply_filters(query, filters, ShpField::LIST),
+        NseFeedKind::SecretarialCompliance => xbrl_apply_filters(query, filters, ScrField::LIST),
+        NseFeedKind::RelatedPartyTransactions => xbrl_apply_filters(query, filters, RptField::LIST),
+        NseFeedKind::InvestorComplaints => xbrl_apply_filters(query, filters, IcField::LIST),
+        NseFeedKind::InsiderTrading => xbrl_apply_filters(query, filters, ItField::LIST),
+        NseFeedKind::IntegratedFilingFinancials => {
+            xbrl_apply_filters(query, filters, IffField::LIST)
+        }
+        NseFeedKind::FinancialResults => xbrl_apply_filters(query, filters, FrField::LIST),
+        _ => query,
+    }
+}
+
+fn xbrl_apply_filters<F, C>(
+    mut query: Select<item::Entity>,
+    filters: &HashMap<String, String>,
+    fields: &[F],
+) -> Select<item::Entity>
+where
+    F: Copy,
+    F: FnIsField<C>,
+    C: ColumnTrait,
+{
+    for field in fields {
+        if let Some(v) = filter_value(filters, field.sort_key()) {
+            query = match field.filter_kind() {
+                FilterKind::Text => apply_text_contains(query, field.column(), v),
+                FilterKind::Date => crate::list_filters::apply_date_eq(query, field.column(), v),
+            };
+        }
+    }
+    query
+}
+
 trait FnIsField<C: ColumnTrait>: Copy {
     fn sort_key(self) -> &'static str;
+    fn label(self) -> &'static str;
     fn column(self) -> C;
+    fn filter_kind(self) -> FilterKind;
 }
 
 macro_rules! impl_field {
@@ -511,8 +567,14 @@ macro_rules! impl_field {
             fn sort_key(self) -> &'static str {
                 Self::sort_key(self)
             }
+            fn label(self) -> &'static str {
+                Self::label(self)
+            }
             fn column(self) -> $col {
                 Self::column(self)
+            }
+            fn filter_kind(self) -> FilterKind {
+                Self::filter_kind(self)
             }
         }
     };
@@ -723,62 +785,224 @@ fn desc_sort(
     })
 }
 
-pub fn extra_columns(kind: NseFeedKind) -> Vec<(&'static str, &'static str)> {
+fn desc_filter(
+    query: Select<item::Entity>,
+    kind: NseFeedKind,
+    field: DescriptionField,
+    value: &str,
+) -> Select<item::Entity> {
+    let kind_v = field.value_kind();
+    match (kind, field) {
+        (NseFeedKind::Announcements, DescriptionField::Subject) => {
+            apply_value_filter(query, announcements::Column::Subject, kind_v, value)
+        }
+        (NseFeedKind::DailyBuyback, DescriptionField::Subject) => {
+            apply_value_filter(query, daily_buyback::Column::Subject, kind_v, value)
+        }
+        (NseFeedKind::AnnualReports, DescriptionField::AsOnDate) => {
+            apply_value_filter(query, annual_reports::Column::AsOnDate, kind_v, value)
+        }
+        (NseFeedKind::UnitholdingPatterns, DescriptionField::AsOnDate) => {
+            apply_value_filter(query, unitholding_patterns::Column::AsOnDate, kind_v, value)
+        }
+        (NseFeedKind::Brsr, DescriptionField::OriginalSubmissionDate) => apply_value_filter(
+            query,
+            brsr_ent::Column::OriginalSubmissionDate,
+            kind_v,
+            value,
+        ),
+        (NseFeedKind::CorporateActions, DescriptionField::Series) => {
+            apply_value_filter(query, corporate_actions::Column::Series, kind_v, value)
+        }
+        (NseFeedKind::CorporateActions, DescriptionField::Purpose) => {
+            apply_value_filter(query, corporate_actions::Column::Purpose, kind_v, value)
+        }
+        (NseFeedKind::CorporateActions, DescriptionField::FaceValue) => {
+            apply_value_filter(query, corporate_actions::Column::FaceValue, kind_v, value)
+        }
+        (NseFeedKind::CorporateActions, DescriptionField::RecordDate) => {
+            apply_value_filter(query, corporate_actions::Column::RecordDate, kind_v, value)
+        }
+        (NseFeedKind::CorporateActions, DescriptionField::BookClosureStartDate) => {
+            apply_value_filter(
+                query,
+                corporate_actions::Column::BookClosureStartDate,
+                kind_v,
+                value,
+            )
+        }
+        (NseFeedKind::CorporateActions, DescriptionField::BookClosureEndDate) => {
+            apply_value_filter(
+                query,
+                corporate_actions::Column::BookClosureEndDate,
+                kind_v,
+                value,
+            )
+        }
+        (NseFeedKind::FinancialResults, DescriptionField::RelatingTo) => {
+            apply_value_filter(query, financial_results::Column::RelatingTo, kind_v, value)
+        }
+        (NseFeedKind::FinancialResults, DescriptionField::AuditedUnaudited) => apply_value_filter(
+            query,
+            financial_results::Column::AuditedUnaudited,
+            kind_v,
+            value,
+        ),
+        (NseFeedKind::FinancialResults, DescriptionField::Cumulative) => {
+            apply_value_filter(query, financial_results::Column::Cumulative, kind_v, value)
+        }
+        (NseFeedKind::FinancialResults, DescriptionField::Consolidated) => apply_value_filter(
+            query,
+            financial_results::Column::Consolidated,
+            kind_v,
+            value,
+        ),
+        (NseFeedKind::FinancialResults, DescriptionField::IndAs) => {
+            apply_value_filter(query, financial_results::Column::IndAs, kind_v, value)
+        }
+        (NseFeedKind::FinancialResults, DescriptionField::Period) => {
+            apply_value_filter(query, financial_results::Column::Period, kind_v, value)
+        }
+        (NseFeedKind::FinancialResults, DescriptionField::PeriodEnded) => {
+            apply_value_filter(query, financial_results::Column::PeriodEnded, kind_v, value)
+        }
+        (NseFeedKind::ShareTransfers, DescriptionField::PeriodEnded) => {
+            apply_value_filter(query, share_transfers::Column::PeriodEnded, kind_v, value)
+        }
+        (NseFeedKind::IntegratedFilingFinancials, DescriptionField::SubmissionType) => {
+            apply_value_filter(
+                query,
+                integrated_filing_financials::Column::SubmissionType,
+                kind_v,
+                value,
+            )
+        }
+        (NseFeedKind::IntegratedFilingFinancials, DescriptionField::Remarks) => apply_value_filter(
+            query,
+            integrated_filing_financials::Column::Remarks,
+            kind_v,
+            value,
+        ),
+        (NseFeedKind::InvestorComplaints, DescriptionField::ForQuarterEnding) => {
+            apply_value_filter(
+                query,
+                investor_complaints::Column::ForQuarterEnding,
+                kind_v,
+                value,
+            )
+        }
+        (NseFeedKind::ReasonForEncumbrance, DescriptionField::EncumberedPromoterNames) => {
+            apply_value_filter(
+                query,
+                reason_for_encumbrance::Column::EncumberedPromoterNames,
+                kind_v,
+                value,
+            )
+        }
+        (NseFeedKind::Regulation29, DescriptionField::AcquirerNames) => {
+            apply_value_filter(query, regulation_29::Column::AcquirerNames, kind_v, value)
+        }
+        (NseFeedKind::Regulation31, DescriptionField::PromoterNames) => {
+            apply_value_filter(query, regulation_31::Column::PromoterNames, kind_v, value)
+        }
+        (NseFeedKind::RelatedPartyTransactions, DescriptionField::PeriodEndDate) => {
+            apply_value_filter(
+                query,
+                related_party_transactions::Column::PeriodEndDate,
+                kind_v,
+                value,
+            )
+        }
+        (NseFeedKind::StatementOfDeviation, DescriptionField::PeriodEndDate) => apply_value_filter(
+            query,
+            statement_of_deviation::Column::PeriodEndDate,
+            kind_v,
+            value,
+        ),
+        (NseFeedKind::SecretarialCompliance, DescriptionField::FinancialYear) => {
+            apply_value_filter(
+                query,
+                secretarial_compliance::Column::FinancialYear,
+                kind_v,
+                value,
+            )
+        }
+        (NseFeedKind::SecretarialCompliance, DescriptionField::SubmissionType) => {
+            apply_value_filter(
+                query,
+                secretarial_compliance::Column::SubmissionType,
+                kind_v,
+                value,
+            )
+        }
+        (NseFeedKind::VotingResults, DescriptionField::MeetingDate) => {
+            apply_value_filter(query, voting_results::Column::MeetingDate, kind_v, value)
+        }
+        _ => query,
+    }
+}
+
+pub fn extra_columns(kind: NseFeedKind) -> Vec<FilterField> {
     let mut cols: Vec<_> = kind
         .extra_list_fields()
         .iter()
-        .map(|f| (f.sort_key(), f.label()))
+        .map(|f| FilterField {
+            key: f.sort_key(),
+            label: f.label(),
+            kind: f.value_kind().filter_kind(),
+        })
         .collect();
     cols.extend(xbrl_list_columns(kind));
     cols
 }
 
-fn xbrl_list_columns(kind: NseFeedKind) -> Vec<(&'static str, &'static str)> {
+pub fn filter_fields(kind: NseFeedKind) -> Vec<FilterField> {
+    let mut fields = vec![
+        FilterField {
+            key: "Title",
+            label: "Title",
+            kind: FilterKind::Text,
+        },
+        FilterField {
+            key: "PubDate",
+            label: "PubDate",
+            kind: FilterKind::Date,
+        },
+    ];
+    fields.extend(extra_columns(kind));
+    if kind.shows_description_column() {
+        fields.push(FilterField {
+            key: "Description",
+            label: "Description",
+            kind: FilterKind::Text,
+        });
+    }
+    fields
+}
+
+fn xbrl_list_columns(kind: NseFeedKind) -> Vec<FilterField> {
+    fn map_fields<F: Copy + FnIsField<C>, C: ColumnTrait>(fields: &[F]) -> Vec<FilterField> {
+        fields
+            .iter()
+            .map(|f| FilterField {
+                key: f.sort_key(),
+                label: f.label(),
+                kind: f.filter_kind(),
+            })
+            .collect()
+    }
     match kind {
-        NseFeedKind::Brsr => BrsrField::LIST
-            .iter()
-            .map(|f| (f.sort_key(), f.label()))
-            .collect(),
-        NseFeedKind::VotingResults => VoteField::LIST
-            .iter()
-            .map(|f| (f.sort_key(), f.label()))
-            .collect(),
-        NseFeedKind::UnitholdingPatterns => UhpField::LIST
-            .iter()
-            .map(|f| (f.sort_key(), f.label()))
-            .collect(),
-        NseFeedKind::StatementOfDeviation => SodField::LIST
-            .iter()
-            .map(|f| (f.sort_key(), f.label()))
-            .collect(),
-        NseFeedKind::ShareholdingPattern => ShpField::LIST
-            .iter()
-            .map(|f| (f.sort_key(), f.label()))
-            .collect(),
-        NseFeedKind::SecretarialCompliance => ScrField::LIST
-            .iter()
-            .map(|f| (f.sort_key(), f.label()))
-            .collect(),
-        NseFeedKind::RelatedPartyTransactions => RptField::LIST
-            .iter()
-            .map(|f| (f.sort_key(), f.label()))
-            .collect(),
-        NseFeedKind::InvestorComplaints => IcField::LIST
-            .iter()
-            .map(|f| (f.sort_key(), f.label()))
-            .collect(),
-        NseFeedKind::InsiderTrading => ItField::LIST
-            .iter()
-            .map(|f| (f.sort_key(), f.label()))
-            .collect(),
-        NseFeedKind::IntegratedFilingFinancials => IffField::LIST
-            .iter()
-            .map(|f| (f.sort_key(), f.label()))
-            .collect(),
-        NseFeedKind::FinancialResults => FrField::LIST
-            .iter()
-            .map(|f| (f.sort_key(), f.label()))
-            .collect(),
+        NseFeedKind::Brsr => map_fields(BrsrField::LIST),
+        NseFeedKind::VotingResults => map_fields(VoteField::LIST),
+        NseFeedKind::UnitholdingPatterns => map_fields(UhpField::LIST),
+        NseFeedKind::StatementOfDeviation => map_fields(SodField::LIST),
+        NseFeedKind::ShareholdingPattern => map_fields(ShpField::LIST),
+        NseFeedKind::SecretarialCompliance => map_fields(ScrField::LIST),
+        NseFeedKind::RelatedPartyTransactions => map_fields(RptField::LIST),
+        NseFeedKind::InvestorComplaints => map_fields(IcField::LIST),
+        NseFeedKind::InsiderTrading => map_fields(ItField::LIST),
+        NseFeedKind::IntegratedFilingFinancials => map_fields(IffField::LIST),
+        NseFeedKind::FinancialResults => map_fields(FrField::LIST),
         _ => Vec::new(),
     }
 }
@@ -1427,4 +1651,56 @@ pub async fn search_satellite_item_ids(
         limit
     );
     Ok(ids)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::list_filters::{FilterKind, ValueKind};
+
+    #[test]
+    fn filter_fields_include_base_columns_for_every_feed() {
+        for kind in NseFeedKind::ALL {
+            let fields = filter_fields(*kind);
+            assert_eq!(fields[0].key, "Title");
+            assert_eq!(fields[0].kind, FilterKind::Text);
+            assert_eq!(fields[1].key, "PubDate");
+            assert_eq!(fields[1].kind, FilterKind::Date);
+            let keys: Vec<_> = fields.iter().map(|f| f.key).collect();
+            if kind.shows_description_column() {
+                assert!(keys.contains(&"Description"));
+                assert_eq!(fields.last().map(|f| f.key), Some("Description"));
+            } else {
+                assert!(!keys.contains(&"Description"));
+            }
+        }
+    }
+
+    #[test]
+    fn filter_fields_include_description_and_xbrl_date_keys() {
+        let announcements: Vec<_> = filter_fields(NseFeedKind::Announcements)
+            .into_iter()
+            .map(|f| (f.key, f.kind))
+            .collect();
+        assert!(announcements.contains(&("Subject", FilterKind::Text)));
+        assert!(announcements.contains(&("Description", FilterKind::Text)));
+
+        let brsr: Vec<_> = filter_fields(NseFeedKind::Brsr)
+            .into_iter()
+            .map(|f| (f.key, f.kind))
+            .collect();
+        assert!(brsr.contains(&("OriginalSubmissionDate", FilterKind::Date)));
+        assert!(brsr.contains(&("BrsrFyEnd", FilterKind::Date)));
+        assert!(brsr.contains(&("BrsrNseSymbol", FilterKind::Text)));
+        assert_eq!(
+            DescriptionField::OriginalSubmissionDate.value_kind(),
+            ValueKind::DateTime
+        );
+
+        let shp: Vec<_> = filter_fields(NseFeedKind::ShareholdingPattern)
+            .into_iter()
+            .map(|f| (f.key, f.kind))
+            .collect();
+        assert!(shp.contains(&("ShpDateOfReport", FilterKind::Date)));
+    }
 }

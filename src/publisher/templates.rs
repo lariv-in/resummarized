@@ -2,38 +2,44 @@ use frunk::Generic;
 use lariv_rs::{
     components::{
         ButtonModalForm, ButtonSubmit, DeleteConfirmation, DetailHeader, FieldDatetime, FieldText,
-        FormOpts, LayoutMain, LayoutSidebar, ObjectList, PaginationPage, ShellChrome,
-        ShellScaffold, SidebarMenu, SidebarMenuItem, SlotCapability, SlotRegistrar, SwapKey,
-        TableButtonFilter, TableColumnHeader, TablePagination, TableRow, button_modal_form,
-        button_submit, column_sort_url, container_column, data_table_list_refresh,
-        delete_confirmation, detail, detail_header, field_datetime, field_text, form,
-        form_hx_get_route, form_hx_post_selector, form_hx_post_url, label, layout_main,
-        layout_sidebar, modal, modal_keyed, pagination_pages, row_attr_navigate_route,
-        shell_scaffold, sidebar_menu, sidebar_menu_item_pane, sort_indicator, table_button_filter,
+        FormOpts, InputText, InputTextarea, LayoutMain, LayoutSidebar, ManyToManyItem, ObjectList,
+        PaginationPage, ShellChrome, ShellScaffold, SidebarMenu, SidebarNavLink, SlotCapability,
+        SlotRegistrar, SwapKey, TableButtonFilter, TableColumnHeader, TablePagination, TableRow,
+        button_modal_form, button_submit, column_sort_url, container_column,
+        data_table_list_refresh, delete_confirmation, detail, detail_header, field_datetime,
+        field_text, form, form_hx_get_route, form_hx_post_main, form_hx_post_selector,
+        form_hx_post_url, input_text, input_textarea, label, layout_main, layout_sidebar, modal,
+        modal_keyed, pagination_pages, row_attr_navigate_route, shell_scaffold, sidebar_menu,
+        sidebar_nav_items_pane, sort_indicator, table_button_bulk_actions, table_button_filter,
         table_create_button, table_pagination,
     },
     html_form::{FormCtx, HtmlForm},
     http::ProvideRequestCaps,
     template::{RenderAppPane, RenderTemplate, TemplateCapability, TemplateOf, TemplateRegistrar},
-    web::{modal_create_post_query, modal_edit_post_url},
+    web::{modal_create_post_query, modal_create_post_url, modal_edit_post_url},
 };
-use maud::{Markup, html};
+use maud::{Markup, PreEscaped, html};
 
-use super::crumbs::{subscriber_crumbs, subscribers_list_crumbs};
+use super::crumbs::{preferences_crumbs, subscriber_crumbs, subscribers_list_crumbs};
+use super::email::TemplateContextField;
 use super::forms::{
-    SubscriberFilterForm, SubscriberFilterFormField, SubscriberForm, SubscriberFormField,
+    PreferencesForm, PreferencesFormField, SendEmailForm, SendEmailFormField, SubscriberFilterForm,
+    SubscriberFilterFormField, SubscriberForm, SubscriberFormField,
 };
 use super::keys::{
-    SubscriberCreateModalKey, SubscriberDeleteModalKey, SubscriberEditModalKey, SubscriberTableKey,
+    SubscriberCreateModalKey, SubscriberDeleteModalKey, SubscriberEditModalKey,
+    SubscriberSendEmailModalKey, SubscriberTableKey,
 };
 use super::routes::{
-    SubscriberCreatePostRouteTag, SubscriberDefaultRouteTag, SubscriberDeleteGetRouteTag,
-    SubscriberDetailRouteTag, SubscriberEditGetRouteTag, SubscriberEditPostRouteTag,
+    PublisherPrefsGetRouteTag, PublisherPrefsPostRouteTag, SubscriberCreatePostRouteTag,
+    SubscriberDefaultRouteTag, SubscriberDeleteGetRouteTag, SubscriberDetailRouteTag,
+    SubscriberEditGetRouteTag, SubscriberEditPostRouteTag, SubscriberSendEmailPostRouteTag,
 };
 
 const CREATE_FORM: &str = "publisher.SubscriberCreateForm";
 const EDIT_FORM: &str = "publisher.SubscriberEditForm";
 const DELETE_FORM: &str = "publisher.SubscriberDeleteForm";
+const SEND_EMAIL_FORM: &str = "publisher.SubscriberSendEmailForm";
 
 fn app_scaffold(
     title: &str,
@@ -73,16 +79,28 @@ fn scaffold_main(crumbs: Markup, body: Markup) -> lariv_rs::components::MainCont
     })
 }
 
-fn publisher_menu() -> Markup {
+fn publisher_menu(current_path: &str) -> Markup {
     let list_url = SubscriberDefaultRouteTag.url();
-    sidebar_menu(SidebarMenu {
-        title: "Publisher",
-        children: sidebar_menu_item_pane(SidebarMenuItem {
+    let prefs_url = PublisherPrefsGetRouteTag.url();
+    let links = [
+        SidebarNavLink {
+            key: "subscribers",
             title: "Subscribers",
             url: &list_url,
-            active: true,
-            ..Default::default()
-        }),
+            icon_name: None,
+            match_prefixes: &["/publisher/subscribers"],
+        },
+        SidebarNavLink {
+            key: "preferences",
+            title: "Preferences",
+            url: &prefs_url,
+            icon_name: None,
+            match_prefixes: &[],
+        },
+    ];
+    sidebar_menu(SidebarMenu {
+        title: "Publisher",
+        children: sidebar_nav_items_pane(&links, current_path),
     })
 }
 
@@ -118,6 +136,8 @@ lariv_rs::define_register_items! {
         SubscriberCreateModalIdx: SubscriberCreateModalPageTag => SubscriberCreateModalPage,
         SubscriberEditModalIdx: SubscriberEditModalPageTag => SubscriberEditModalPage,
         ConfirmDeleteIdx: PublisherConfirmDeletePageTag => ConfirmDeletePage,
+        PreferencesIdx: PublisherPreferencesPageTag => PublisherPreferencesPage,
+        SendEmailModalIdx: SubscriberSendEmailModalPageTag => SubscriberSendEmailModalPage,
     ]
 }
 
@@ -148,7 +168,75 @@ pub struct SubscriberListPage {
 }
 
 impl SubscriberListPage {
+    fn selection_root_js() -> &'static str {
+        "Alpine.$data($el.closest('[data-publisher-selection]'))"
+    }
+
+    fn selection_x_data() -> &'static str {
+        r#"{
+            selected: {},
+            toggle(id) {
+                const k = String(id);
+                if (this.selected[k]) delete this.selected[k];
+                else this.selected[k] = true;
+            },
+            setVisible(ids, on) {
+                for (const id of ids) {
+                    const k = String(id);
+                    if (on) this.selected[k] = true;
+                    else delete this.selected[k];
+                }
+            },
+            allVisibleSelected(ids) {
+                return ids.length > 0 && ids.every(id => !!this.selected[String(id)]);
+            },
+            someVisibleSelected(ids) {
+                return ids.some(id => !!this.selected[String(id)]);
+            },
+            selectedIds() {
+                return Object.keys(this.selected).filter(k => this.selected[k]);
+            },
+            bulkSendHref() {
+                const ids = this.selectedIds();
+                if (ids.length < 1) return '#';
+                return '/publisher/subscribers/send-email/?ids=' + ids.join(',');
+            },
+            bulkSendAllHref() {
+                return '/publisher/subscribers/send-email/?all=1';
+            },
+            requestBulkSend(el) {
+                const href = this.bulkSendHref();
+                if (href === '#' || typeof htmx === 'undefined') return;
+                htmx.ajax('GET', href, { target: 'body', swap: 'beforeend', source: el });
+            },
+            requestBulkSendAll(el) {
+                if (typeof htmx === 'undefined') return;
+                htmx.ajax('GET', this.bulkSendAllHref(), { target: 'body', swap: 'beforeend', source: el });
+            }
+        }"#
+    }
+
+    fn wrap_with_selection(&self, table: Markup) -> Markup {
+        html! {
+            (PreEscaped(format!(
+                r#"<div data-publisher-selection x-data="{}">"#,
+                lariv_rs::components::attrs::escape_attr(Self::selection_x_data()),
+            )))
+            (table)
+            (PreEscaped("</div>"))
+        }
+    }
+
+    fn body(&self) -> Markup {
+        if self.can_edit {
+            self.wrap_with_selection(self.render_table())
+        } else {
+            self.render_table()
+        }
+    }
+
     pub fn render_table(&self) -> Markup {
+        let sel = Self::selection_root_js();
         let email_sort = column_sort_url(&self.path_and_query, "Email", &self.sort);
         let email_label = format!("Email{}", sort_indicator(&self.sort, "Email"));
         let date_sort = column_sort_url(&self.path_and_query, "SubscriptionDate", &self.sort);
@@ -156,36 +244,69 @@ impl SubscriberListPage {
             "Subscription date{}",
             sort_indicator(&self.sort, "SubscriptionDate")
         );
-        let headers = [
-            TableColumnHeader {
-                key: "Email",
-                label: &email_label,
-                sort_url: Some(&email_sort),
+        let visible_ids: Vec<i64> = self.subscribers.items.iter().map(|s| s.id).collect();
+        let visible_ids_js = format!(
+            "[{}]",
+            visible_ids
+                .iter()
+                .map(|id| id.to_string())
+                .collect::<Vec<_>>()
+                .join(",")
+        );
+        let select_all_label = format!(
+            r#"<label class="flex justify-center" @click.stop=""><input type="checkbox" class="checkbox checkbox-sm" @change="{sel}.setVisible({ids}, $event.target.checked)" :checked="{sel}.allVisibleSelected({ids})" x-effect="$el.indeterminate = {sel}.someVisibleSelected({ids}) && !{sel}.allVisibleSelected({ids})" /></label>"#,
+            sel = sel,
+            ids = visible_ids_js,
+        );
+        let mut headers = Vec::new();
+        if self.can_edit {
+            headers.push(TableColumnHeader {
+                key: "Select",
+                label: &select_all_label,
+                sort_url: None,
                 push_url: true,
-            },
-            TableColumnHeader {
-                key: "SubscriptionDate",
-                label: &date_label,
-                sort_url: Some(&date_sort),
-                push_url: true,
-            },
-        ];
+            });
+        }
+        headers.push(TableColumnHeader {
+            key: "Email",
+            label: &email_label,
+            sort_url: Some(&email_sort),
+            push_url: true,
+        });
+        headers.push(TableColumnHeader {
+            key: "SubscriptionDate",
+            label: &date_label,
+            sort_url: Some(&date_sort),
+            push_url: true,
+        });
         let rows: Vec<TableRow> = self
             .subscribers
             .items
             .iter()
-            .map(|s| TableRow {
-                attrs: row_attr_navigate_route(SubscriberDetailRouteTag::new(s.id)),
-                cells: vec![
-                    field_text(FieldText {
-                        value: &s.email,
-                        classes: "",
-                    }),
-                    field_datetime(FieldDatetime {
-                        value: &s.subscription_date,
-                        classes: "",
-                    }),
-                ],
+            .map(|s| {
+                let mut cells = Vec::new();
+                if self.can_edit {
+                    cells.push(
+                        PreEscaped(format!(
+                            r#"<label class="flex justify-center" @click.stop=""><input type="checkbox" class="checkbox checkbox-sm" @change="{sel}.toggle({id})" :checked="!!{sel}.selected['{id}']" /></label>"#,
+                            sel = sel,
+                            id = s.id,
+                        ))
+                        .into(),
+                    );
+                }
+                cells.push(field_text(FieldText {
+                    value: &s.email,
+                    classes: "",
+                }));
+                cells.push(field_datetime(FieldDatetime {
+                    value: &s.subscription_date,
+                    classes: "",
+                }));
+                TableRow {
+                    attrs: row_attr_navigate_route(SubscriberDetailRouteTag::new(s.id)),
+                    cells,
+                }
             })
             .collect();
         let mut actions = html! {
@@ -207,8 +328,43 @@ impl SubscriberListPage {
             }))
         };
         if self.can_edit {
+            let bulk_item = |label: &str,
+                             classes: &str,
+                             on_click: &str,
+                             require_selection: bool| {
+                let disabled = if require_selection {
+                    format!(
+                        r#" x-bind:class="{sel}.selectedIds().length >= 1 ? '' : 'btn-disabled pointer-events-none opacity-50'""#,
+                        sel = sel,
+                    )
+                } else {
+                    String::new()
+                };
+                format!(
+                    r#"<button type="button" class="btn {classes} btn-sm justify-start w-full"{disabled} @click="{sel}.{on_click}($el); $el.closest('details')?.removeAttribute('open')">{label}</button>"#,
+                    classes = classes,
+                    sel = sel,
+                    on_click = on_click,
+                    label = label,
+                    disabled = disabled,
+                )
+            };
+            let bulk_items = format!(
+                "{}{}",
+                bulk_item("Send email", "btn-ghost", "requestBulkSend", true),
+                bulk_item(
+                    "Send to all subscribers",
+                    "btn-ghost",
+                    "requestBulkSendAll",
+                    false
+                ),
+            );
+            let bulk_actions = table_button_bulk_actions(html! {
+                (PreEscaped(bulk_items))
+            });
             actions = html! {
                 (actions)
+                (bulk_actions)
                 (table_create_button::<SubscriberTableKey, SubscriberCreateModalKey>(
                     Some("plus"),
                     "btn-square btn-outline btn-sm",
@@ -233,13 +389,13 @@ impl SubscriberListPage {
 impl RenderAppPane for SubscriberListPage {
     fn render_pane(&self) -> lariv_rs::components::AppLayoutHtml {
         scaffold_pane(
-            publisher_menu(),
+            publisher_menu(&SubscriberDefaultRouteTag.url()),
             subscribers_list_crumbs(),
-            self.render_table(),
+            self.body(),
         )
     }
     fn render_main(&self) -> lariv_rs::components::MainContentHtml {
-        scaffold_main(subscribers_list_crumbs(), self.render_table())
+        scaffold_main(subscribers_list_crumbs(), self.body())
     }
 }
 
@@ -248,9 +404,9 @@ impl RenderTemplate for SubscriberListPage {
         app_scaffold(
             "Subscribers — Publisher",
             chrome,
-            publisher_menu(),
+            publisher_menu(&SubscriberDefaultRouteTag.url()),
             subscribers_list_crumbs(),
-            self.render_table(),
+            self.body(),
         )
     }
 }
@@ -304,7 +460,7 @@ impl SubscriberDetailPage {
 impl RenderAppPane for SubscriberDetailPage {
     fn render_pane(&self) -> lariv_rs::components::AppLayoutHtml {
         scaffold_pane(
-            publisher_menu(),
+            publisher_menu(&SubscriberDetailRouteTag::new(self.id).url()),
             subscriber_crumbs(&self.email, self.id, None),
             self.body(),
         )
@@ -319,7 +475,7 @@ impl RenderTemplate for SubscriberDetailPage {
         app_scaffold(
             "Subscriber — Publisher",
             chrome,
-            publisher_menu(),
+            publisher_menu(&SubscriberDetailRouteTag::new(self.id).url()),
             subscriber_crumbs(&self.email, self.id, None),
             self.body(),
         )
@@ -446,5 +602,181 @@ impl RenderTemplate for ConfirmDeletePage {
             }),
             ..Default::default()
         })
+    }
+}
+
+#[derive(Generic)]
+pub struct PublisherPreferencesPage {
+    pub html_template: String,
+    pub smtp_host: String,
+    pub smtp_port: String,
+    pub smtp_username: String,
+    pub smtp_password: String,
+    pub smtp_from: String,
+    pub error: String,
+}
+
+impl PublisherPreferencesPage {
+    fn body(&self) -> Markup {
+        form(FormOpts {
+            attrs: form_hx_post_main(PublisherPrefsPostRouteTag),
+            title: "Publisher Preferences",
+            subtitle: "HTML email template and SMTP settings for subscriber mailings",
+            form_error: Some(self.error.as_str()).filter(|e| !e.is_empty()),
+            inputs: PreferencesForm::render_inputs(
+                &FormCtx::form::<PreferencesForm>()
+                    .value(
+                        PreferencesFormField::HtmlTemplate,
+                        self.html_template.as_str(),
+                    )
+                    .value(PreferencesFormField::SmtpHost, self.smtp_host.as_str())
+                    .value(PreferencesFormField::SmtpPort, self.smtp_port.as_str())
+                    .value(
+                        PreferencesFormField::SmtpUsername,
+                        self.smtp_username.as_str(),
+                    )
+                    .value(
+                        PreferencesFormField::SmtpPassword,
+                        self.smtp_password.as_str(),
+                    )
+                    .value(PreferencesFormField::SmtpFrom, self.smtp_from.as_str()),
+            ),
+            actions: html! {
+                (button_submit(ButtonSubmit {
+                    label: "Save Preferences",
+                    ..Default::default()
+                }))
+            },
+            ..Default::default()
+        })
+    }
+}
+
+impl RenderAppPane for PublisherPreferencesPage {
+    fn render_pane(&self) -> lariv_rs::components::AppLayoutHtml {
+        scaffold_pane(
+            publisher_menu(&PublisherPrefsGetRouteTag.url()),
+            preferences_crumbs(),
+            self.body(),
+        )
+    }
+
+    fn render_main(&self) -> lariv_rs::components::MainContentHtml {
+        scaffold_main(preferences_crumbs(), self.body())
+    }
+}
+
+impl RenderTemplate for PublisherPreferencesPage {
+    fn render(&self, chrome: &ShellChrome) -> Markup {
+        app_scaffold(
+            "Preferences — Publisher",
+            chrome,
+            publisher_menu(&PublisherPrefsGetRouteTag.url()),
+            preferences_crumbs(),
+            self.body(),
+        )
+    }
+}
+
+#[derive(Generic)]
+pub struct SubscriberSendEmailModalPage {
+    pub form_name: String,
+    pub refresh_table: String,
+    pub ids: String,
+    pub send_all: bool,
+    pub recipient_count: usize,
+    pub subject: String,
+    pub attachments: Vec<ManyToManyItem>,
+    pub context_fields: Vec<TemplateContextField>,
+    pub error: String,
+    pub can_submit: bool,
+}
+
+impl RenderTemplate for SubscriberSendEmailModalPage {
+    fn render(&self, _chrome: &ShellChrome) -> Markup {
+        let form_name = if self.form_name.is_empty() {
+            SEND_EMAIL_FORM
+        } else {
+            self.form_name.as_str()
+        };
+        let mut post_url = modal_create_post_url(
+            SubscriberSendEmailPostRouteTag,
+            form_name,
+            &self.refresh_table,
+        );
+        if self.send_all {
+            post_url.push_str("&all=1");
+        } else if !self.ids.is_empty() {
+            post_url.push_str("&ids=");
+            post_url.push_str(&self.ids);
+        }
+        let subtitle = if self.send_all {
+            format!(
+                "Send the preference HTML template to all {} subscriber(s). Attach files from the filesystem.",
+                self.recipient_count
+            )
+        } else if self.recipient_count == 1 {
+            "Send the preference HTML template to the selected subscriber. Attach files from the filesystem.".to_string()
+        } else {
+            format!(
+                "Send the preference HTML template to {} selected subscribers. Attach files from the filesystem.",
+                self.recipient_count
+            )
+        };
+        let submit = if self.can_submit {
+            html! {
+                (button_submit(ButtonSubmit { label: "Send email", ..Default::default() }))
+            }
+        } else {
+            html! {}
+        };
+        modal_keyed::<SubscriberSendEmailModalKey>(
+            &self.form_name,
+            html! {
+                h3 class="font-bold text-lg mb-4" { "Send email" }
+                (form(FormOpts {
+                    attrs: form_hx_post_url::<SubscriberSendEmailModalKey>(&post_url),
+                    subtitle: &subtitle,
+                    form_error: Some(self.error.as_str()).filter(|e| !e.is_empty()),
+                    inputs: html! {
+                        (SendEmailForm::render_inputs(
+                            &FormCtx::form::<SendEmailForm>()
+                                .value(SendEmailFormField::Subject, &self.subject)
+                                .m2m(SendEmailFormField::Attachments, &self.attachments),
+                        ))
+                        @if !self.context_fields.is_empty() {
+                            (field_text(FieldText {
+                                value: "Template values",
+                                classes: "text-lg font-semibold mt-4",
+                            }))
+                            p class="text-sm text-gray-500 mb-1" {
+                                "Taken from placeholders in the HTML template (and subject)."
+                            }
+                            @for field in &self.context_fields {
+                                @if field.multiline {
+                                    (input_textarea(InputTextarea {
+                                        label: &field.label,
+                                        name: &field.input_name,
+                                        value: &field.value,
+                                        rows: 4,
+                                        hint: field.hint.as_deref(),
+                                        ..Default::default()
+                                    }))
+                                } @else {
+                                    (input_text(InputText {
+                                        label: &field.label,
+                                        name: &field.input_name,
+                                        value: &field.value,
+                                        ..Default::default()
+                                    }))
+                                }
+                            }
+                        }
+                    },
+                    actions: submit,
+                    ..Default::default()
+                }))
+            },
+        )
     }
 }

@@ -251,6 +251,15 @@ impl ScrField {
             Self::PcsReportDate => opt_date(item.pcs_report_date),
         }
     }
+
+    pub fn filter_kind(self) -> crate::list_filters::FilterKind {
+        match self {
+            Self::FyStart | Self::FyEnd | Self::DateOfReport | Self::PcsReportDate => {
+                crate::list_filters::FilterKind::Date
+            }
+            _ => crate::list_filters::FilterKind::Text,
+        }
+    }
 }
 
 #[cfg(test)]

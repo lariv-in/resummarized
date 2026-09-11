@@ -286,6 +286,15 @@ impl ItField {
             Self::Exchange => opt_str(&item.exchange),
         }
     }
+
+    pub fn filter_kind(self) -> crate::list_filters::FilterKind {
+        match self {
+            Self::FromDate | Self::ToDate | Self::FilingDate => {
+                crate::list_filters::FilterKind::Date
+            }
+            _ => crate::list_filters::FilterKind::Text,
+        }
+    }
 }
 
 #[cfg(test)]

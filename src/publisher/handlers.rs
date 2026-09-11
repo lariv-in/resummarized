@@ -1,38 +1,60 @@
 use axum::{
-    extract::{Path, Query},
-    http::Uri,
+    body::Bytes,
+    extract::{FromRequest, Path, Query, Request},
+    http::{StatusCode, Uri, header},
     response::{IntoResponse, Redirect, Response},
 };
 use chrono::Utc;
 use lariv_rs::{
-    components::{DEFAULT_PAGE_SIZE, ObjectList, SharedChromeFolder, SlotCtx, SwapKey},
-    html_form::HtmlFormBody,
+    components::{
+        DEFAULT_PAGE_SIZE, ManyToManyItem, ObjectList, SharedChromeFolder, SlotCtx, SwapKey,
+    },
+    html_form::{HtmlFormBody, UrlencodedFields},
     http::Cap,
-    plugins::users::middleware::RequireAuth,
+    plugins::{
+        filesystem::{
+            entities::{VNodeEntity, filesystem_node::Column as VNodeColumn},
+            state::FilesystemState,
+        },
+        users::middleware::RequireAuth,
+    },
     template::RenderAppPane,
     web::{
         Htmx, ModalFormQuery as ModalNameQuery, QueryPage, html_built_page_or_app_layout,
         html_built_page_with_slots, respond_create_modal_done, respond_edit_modal_done,
     },
 };
-use sea_orm::{ActiveModelTrait, ActiveValue::Set, EntityTrait, PaginatorTrait};
+use sea_orm::{
+    ActiveModelTrait, ActiveValue::Set, ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter,
+};
 
 use super::{
-    entities::subscriber::{self, Entity as SubscriberEntity},
-    forms::SubscriberForm,
+    email::{
+        TemplateContextField, load_attachments, posted_template_context, send_subscriber_emails,
+    },
+    entities::{
+        PublisherPreferences,
+        subscriber::{self, Entity as SubscriberEntity},
+    },
+    forms::{SendEmailForm, SubscriberForm},
     keys::{
         SubscriberCreateModalKey, SubscriberDeleteModalKey, SubscriberEditModalKey,
-        SubscriberTableKey,
+        SubscriberSendEmailModalKey, SubscriberTableKey,
     },
-    routes::{SubscriberDefaultRouteTag, SubscriberDeletePostRouteTag, SubscriberDetailRouteTag},
+    preferences::{empty_preferences, load_preferences, save_preferences},
+    routes::{
+        PublisherPrefsGetRouteTag, SubscriberDefaultRouteTag, SubscriberDeletePostRouteTag,
+        SubscriberDetailRouteTag,
+    },
     scope::{
         apply_email_filter, apply_subscriber_sort, email_in_use, find_subscriber_scoped,
         scope_superuser,
     },
     state::PublisherState,
     templates::{
-        ConfirmDeletePage, SubscriberCreateModalPage, SubscriberDetailPage,
-        SubscriberEditModalPage, SubscriberListPage, SubscriberRow,
+        ConfirmDeletePage, PublisherPreferencesPage, SubscriberCreateModalPage,
+        SubscriberDetailPage, SubscriberEditModalPage, SubscriberListPage, SubscriberRow,
+        SubscriberSendEmailModalPage,
     },
 };
 
@@ -373,5 +395,400 @@ pub async fn delete_post(
             };
             html_built_page_with_slots(&page, &chrome, &SlotCtx::from_auth(&ctx)).into_response()
         }
+    }
+}
+
+fn prefs_page(prefs: PublisherPreferences, error: String) -> PublisherPreferencesPage {
+    PublisherPreferencesPage {
+        html_template: prefs.html_template,
+        smtp_host: prefs.smtp_host,
+        smtp_port: prefs.smtp_port,
+        smtp_username: prefs.smtp_username,
+        smtp_password: prefs.smtp_password,
+        smtp_from: prefs.smtp_from,
+        error,
+    }
+}
+
+pub async fn preferences_get(
+    Cap(state): Cap<PublisherState>,
+    Cap(chrome): Cap<SharedChromeFolder>,
+    RequireAuth(ctx): RequireAuth,
+    htmx: Htmx,
+) -> Response {
+    if !ctx.user.is_superuser {
+        return Redirect::to(&list_url()).into_response();
+    }
+    let slot_ctx = SlotCtx::from_auth(&ctx);
+    let prefs = match load_preferences(&state.db).await {
+        Ok(p) => p,
+        Err(e) => {
+            let page = prefs_page(empty_preferences(), e.to_string());
+            return html_built_page_or_app_layout(&page, &htmx, &chrome, &slot_ctx).into_response();
+        }
+    };
+    html_built_page_or_app_layout(&prefs_page(prefs, String::new()), &htmx, &chrome, &slot_ctx)
+        .into_response()
+}
+
+pub async fn preferences_post(
+    Cap(state): Cap<PublisherState>,
+    Cap(chrome): Cap<SharedChromeFolder>,
+    RequireAuth(ctx): RequireAuth,
+    htmx: Htmx,
+    HtmlFormBody(form): HtmlFormBody<super::forms::PreferencesForm>,
+) -> Response {
+    if !ctx.user.is_superuser {
+        return Redirect::to(&list_url()).into_response();
+    }
+    let slot_ctx = SlotCtx::from_auth(&ctx);
+    let prefs = PublisherPreferences {
+        id: 1,
+        created_at: None,
+        updated_at: None,
+        html_template: form.html_template,
+        smtp_host: form.smtp_host,
+        smtp_port: form.smtp_port,
+        smtp_username: form.smtp_username,
+        smtp_password: form.smtp_password,
+        smtp_from: form.smtp_from,
+    };
+    match save_preferences(&state.db, prefs.clone()).await {
+        Ok(_) => htmx.redirect(&PublisherPrefsGetRouteTag.url()),
+        Err(e) => {
+            let page = prefs_page(prefs, e.to_string());
+            html_built_page_or_app_layout(&page, &htmx, &chrome, &slot_ctx).into_response()
+        }
+    }
+}
+
+#[derive(Debug, serde::Deserialize, Default)]
+pub struct SendEmailQuery {
+    #[serde(flatten)]
+    pub modal: ModalNameQuery,
+    #[serde(default)]
+    pub ids: Option<String>,
+    #[serde(default)]
+    pub all: Option<String>,
+}
+
+fn query_is_all(raw: Option<&str>) -> bool {
+    matches!(
+        raw.map(str::trim).map(str::to_ascii_lowercase).as_deref(),
+        Some("1" | "true" | "yes" | "on")
+    )
+}
+
+fn parse_bulk_ids(raw: &str) -> Vec<i64> {
+    let mut ids: Vec<i64> = raw
+        .split(',')
+        .filter_map(|p| p.trim().parse().ok())
+        .filter(|id| *id > 0)
+        .collect();
+    ids.sort_unstable();
+    ids.dedup();
+    ids
+}
+
+fn send_email_modal(
+    q: &SendEmailQuery,
+    ids: String,
+    send_all: bool,
+    recipient_count: usize,
+    form: &SendEmailForm,
+    attachments: Vec<ManyToManyItem>,
+    context_fields: Vec<TemplateContextField>,
+    error: String,
+    can_submit: bool,
+) -> SubscriberSendEmailModalPage {
+    SubscriberSendEmailModalPage {
+        form_name: q.modal.form_name(),
+        refresh_table: q.modal.refresh_table(),
+        ids,
+        send_all,
+        recipient_count,
+        subject: form.subject.clone(),
+        attachments,
+        context_fields,
+        error,
+        can_submit,
+    }
+}
+
+async fn attachment_items(db: &sea_orm::DatabaseConnection, ids: &[i64]) -> Vec<ManyToManyItem> {
+    if ids.is_empty() {
+        return Vec::new();
+    }
+    let nodes = VNodeEntity::find()
+        .filter(VNodeColumn::Id.is_in(ids.to_vec()))
+        .all(db)
+        .await
+        .unwrap_or_default();
+    ids.iter()
+        .filter_map(|id| {
+            nodes
+                .iter()
+                .find(|n| n.id == *id)
+                .map(|n| ManyToManyItem::new(n.id.to_string(), n.name.clone()))
+        })
+        .collect()
+}
+
+async fn recipient_emails(
+    db: &sea_orm::DatabaseConnection,
+    auth: &lariv_rs::plugins::users::state::AuthContext,
+    send_all: bool,
+    ids: &[i64],
+) -> Vec<String> {
+    let query = if send_all {
+        scope_superuser(SubscriberEntity::find(), auth)
+    } else if ids.is_empty() {
+        return Vec::new();
+    } else {
+        scope_superuser(
+            SubscriberEntity::find().filter(subscriber::Column::Id.is_in(ids.to_vec())),
+            auth,
+        )
+    };
+    query
+        .all(db)
+        .await
+        .unwrap_or_default()
+        .into_iter()
+        .map(|m| m.email)
+        .collect()
+}
+
+pub async fn send_email_get(
+    Cap(state): Cap<PublisherState>,
+    Cap(chrome): Cap<SharedChromeFolder>,
+    RequireAuth(ctx): RequireAuth,
+    Query(q): Query<SendEmailQuery>,
+) -> maud::Markup {
+    if !ctx.user.is_superuser {
+        return maud::html! { div class="alert alert-error" { "Forbidden" } };
+    }
+    let send_all = query_is_all(q.all.as_deref());
+    let ids = parse_bulk_ids(q.ids.as_deref().unwrap_or(""));
+    let ids_str = ids
+        .iter()
+        .map(|id| id.to_string())
+        .collect::<Vec<_>>()
+        .join(",");
+    let recipients = recipient_emails(&state.db, &ctx, send_all, &ids).await;
+    let (error, can_submit) = if send_all && recipients.is_empty() {
+        ("There are no subscribers to email.".into(), false)
+    } else if !send_all && ids.is_empty() {
+        (
+            "Select at least one subscriber, or choose Send to all subscribers.".into(),
+            false,
+        )
+    } else if !send_all && recipients.is_empty() {
+        (
+            "None of the selected subscribers could be found.".into(),
+            false,
+        )
+    } else {
+        (String::new(), true)
+    };
+    let html_template = load_preferences(&state.db)
+        .await
+        .map(|p| p.html_template)
+        .unwrap_or_default();
+    let (context_fields, _) = posted_template_context(&html_template, "", |_| String::new());
+    let page = send_email_modal(
+        &q,
+        ids_str,
+        send_all,
+        recipients.len(),
+        &SendEmailForm {
+            subject: String::new(),
+            attachments: Vec::new(),
+        },
+        Vec::new(),
+        context_fields,
+        error,
+        can_submit,
+    );
+    html_built_page_with_slots(&page, &chrome, &SlotCtx::from_auth(&ctx))
+}
+
+pub struct SendEmailPosted {
+    form: SendEmailForm,
+    fields: UrlencodedFields,
+}
+
+impl<S> FromRequest<S> for SendEmailPosted
+where
+    S: Send + Sync,
+{
+    type Rejection = (StatusCode, String);
+
+    async fn from_request(req: Request, state: &S) -> Result<Self, Self::Rejection> {
+        let content_type = req
+            .headers()
+            .get(header::CONTENT_TYPE)
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("");
+        if !content_type.starts_with("application/x-www-form-urlencoded") {
+            return Err((
+                StatusCode::UNSUPPORTED_MEDIA_TYPE,
+                "Expected `application/x-www-form-urlencoded` request body".into(),
+            ));
+        }
+        let bytes = Bytes::from_request(req, state)
+            .await
+            .map_err(|err| (StatusCode::BAD_REQUEST, err.to_string()))?;
+        let fields = UrlencodedFields::parse(&bytes).map_err(|e| {
+            (
+                StatusCode::BAD_REQUEST,
+                format!("Failed to parse form body: {e}"),
+            )
+        })?;
+        let form: SendEmailForm = fields.deserialize().map_err(|e| {
+            (
+                StatusCode::BAD_REQUEST,
+                format!("Failed to deserialize form body: {e}"),
+            )
+        })?;
+        Ok(Self { form, fields })
+    }
+}
+
+pub async fn send_email_post(
+    Cap(state): Cap<PublisherState>,
+    Cap(fs): Cap<FilesystemState>,
+    Cap(chrome): Cap<SharedChromeFolder>,
+    RequireAuth(ctx): RequireAuth,
+    htmx: Htmx,
+    Query(q): Query<SendEmailQuery>,
+    SendEmailPosted { form, fields }: SendEmailPosted,
+) -> Response {
+    if !ctx.user.is_superuser {
+        return Redirect::to(&list_url()).into_response();
+    }
+    let send_all = query_is_all(q.all.as_deref());
+    let ids = parse_bulk_ids(q.ids.as_deref().unwrap_or(""));
+    let ids_str = ids
+        .iter()
+        .map(|id| id.to_string())
+        .collect::<Vec<_>>()
+        .join(",");
+    let attachments = attachment_items(&state.db, &form.attachments).await;
+    let recipients = recipient_emails(&state.db, &ctx, send_all, &ids).await;
+    let prefs = load_preferences(&state.db).await;
+    let html_template = prefs
+        .as_ref()
+        .map(|p| p.html_template.as_str())
+        .unwrap_or("");
+    let (context_fields, context) =
+        posted_template_context(html_template, form.subject.trim(), |name| {
+            fields.get_first(name).unwrap_or("").to_string()
+        });
+
+    let redisplay = |error: String, can_submit: bool| {
+        send_email_modal(
+            &q,
+            ids_str.clone(),
+            send_all,
+            recipients.len(),
+            &form,
+            attachments.clone(),
+            context_fields.clone(),
+            error,
+            can_submit,
+        )
+    };
+    let context = match context {
+        Ok(c) => c,
+        Err(e) => {
+            return html_built_page_with_slots(
+                &redisplay(e, true),
+                &chrome,
+                &SlotCtx::from_auth(&ctx),
+            )
+            .into_response();
+        }
+    };
+
+    if form.subject.trim().is_empty() {
+        return html_built_page_with_slots(
+            &redisplay("Subject is required".into(), true),
+            &chrome,
+            &SlotCtx::from_auth(&ctx),
+        )
+        .into_response();
+    }
+    if recipients.is_empty() {
+        return html_built_page_with_slots(
+            &redisplay("There are no subscribers to email.".into(), false),
+            &chrome,
+            &SlotCtx::from_auth(&ctx),
+        )
+        .into_response();
+    }
+
+    let prefs = match prefs {
+        Ok(p) => p,
+        Err(e) => {
+            return html_built_page_with_slots(
+                &redisplay(e.to_string(), true),
+                &chrome,
+                &SlotCtx::from_auth(&ctx),
+            )
+            .into_response();
+        }
+    };
+    if prefs.html_template.trim().is_empty() {
+        return html_built_page_with_slots(
+            &redisplay(
+                "Set an HTML template in Publisher preferences before sending.".into(),
+                true,
+            ),
+            &chrome,
+            &SlotCtx::from_auth(&ctx),
+        )
+        .into_response();
+    }
+
+    let prepared = match load_attachments(&fs.db, fs.store.as_ref(), &form.attachments).await {
+        Ok(a) => a,
+        Err(e) => {
+            return html_built_page_with_slots(
+                &redisplay(e.to_string(), true),
+                &chrome,
+                &SlotCtx::from_auth(&ctx),
+            )
+            .into_response();
+        }
+    };
+
+    match send_subscriber_emails(
+        &prefs,
+        &recipients,
+        form.subject.trim(),
+        &prefs.html_template,
+        &context,
+        prepared,
+    )
+    .await
+    {
+        Ok(report) if report.failures.is_empty() => respond_create_modal_done::<
+            SubscriberSendEmailModalKey,
+        >(
+            &htmx, &q.modal.refresh_table(), &list_url()
+        ),
+        Ok(report) => html_built_page_with_slots(
+            &redisplay(report.summary(), true),
+            &chrome,
+            &SlotCtx::from_auth(&ctx),
+        )
+        .into_response(),
+        Err(e) => html_built_page_with_slots(
+            &redisplay(e.to_string(), true),
+            &chrome,
+            &SlotCtx::from_auth(&ctx),
+        )
+        .into_response(),
     }
 }

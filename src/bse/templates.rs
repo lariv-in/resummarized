@@ -1,13 +1,17 @@
+use std::collections::HashMap;
+
 use frunk::Generic;
 use lariv_rs::{
     capability::define_register_items,
     components::{
-        Crumb, DetailHeader, FieldText, LayoutMain, LayoutSidebar, ObjectList, PaginationPage,
-        ShellChrome, ShellScaffold, SidebarMenu, SidebarNavLink, SlotCapability, SlotRegistrar,
-        SwapKey, TableColumnHeader, TablePagination, TableRow, breadcrumbs, button_post_route,
-        column_sort_url, container_column, data_table_list_refresh, detail, detail_header,
-        field_text, label, layout_main, layout_sidebar, pagination_pages, row_attr_navigate_route,
-        shell_scaffold, sidebar_menu, sidebar_nav_items_pane, sort_indicator, table_pagination,
+        ButtonSubmit, Crumb, DetailHeader, FieldText, FormOpts, InputText, LayoutMain,
+        LayoutSidebar, ObjectList, PaginationPage, ShellChrome, ShellScaffold, SidebarMenu,
+        SidebarNavLink, SlotCapability, SlotRegistrar, SwapKey, TableButtonFilter,
+        TableColumnHeader, TablePagination, TableRow, breadcrumbs, button_clear, button_post_route,
+        button_submit, column_sort_url, container_column, container_row, data_table_list_refresh,
+        detail, detail_header, field_text, form, form_hx_get_route, input_text, label, layout_main,
+        layout_sidebar, pagination_pages, row_attr_navigate_route, shell_scaffold, sidebar_menu,
+        sidebar_nav_items_pane, sort_indicator, table_button_filter, table_pagination,
     },
     http::ProvideRequestCaps,
     template::{RenderAppPane, RenderTemplate, TemplateCapability, TemplateOf, TemplateRegistrar},
@@ -16,7 +20,8 @@ use maud::{Markup, html};
 
 use super::feeds::BseFeedKind;
 use super::keys::ItemTableKey;
-use super::routes::{FeedRefreshRouteTag, ItemDetailRouteTag, feed_list_url};
+use super::routes::{FeedListRouteTag, FeedRefreshRouteTag, ItemDetailRouteTag, feed_list_url};
+use crate::list_filters::{FILTER_PANEL_CLASSES, FilterField, render_filter_inputs};
 
 define_register_items! {
     plugin: BseTag;
@@ -178,6 +183,8 @@ pub struct FeedItemListPage {
     pub show_description: bool,
     pub items: ObjectList<FeedItemRow>,
     pub sort: String,
+    pub filter_fields: Vec<FilterField>,
+    pub filter_values: HashMap<String, String>,
     pub path_and_query: String,
 }
 
@@ -185,6 +192,7 @@ impl FeedItemListPage {
     pub fn render_table(&self) -> Markup {
         let title_sort = column_sort_url(&self.path_and_query, "Title", &self.sort);
         let pub_sort = column_sort_url(&self.path_and_query, "PubDate", &self.sort);
+        let desc_sort = column_sort_url(&self.path_and_query, "Description", &self.sort);
         let extra_sorts: Vec<String> = self
             .extra_fields
             .iter()
@@ -192,6 +200,7 @@ impl FeedItemListPage {
             .collect();
         let title_label = format!("Title{}", sort_indicator(&self.sort, "Title"));
         let pub_label = format!("PubDate{}", sort_indicator(&self.sort, "PubDate"));
+        let desc_label = format!("Description{}", sort_indicator(&self.sort, "Description"));
         let extra_labels: Vec<String> = self
             .extra_fields
             .iter()
@@ -222,8 +231,8 @@ impl FeedItemListPage {
         if self.show_description {
             headers.push(TableColumnHeader {
                 key: "Description",
-                label: "Description",
-                sort_url: None,
+                label: &desc_label,
+                sort_url: Some(&desc_sort),
                 push_url: true,
             });
         }
@@ -261,6 +270,30 @@ impl FeedItemListPage {
             })
             .collect();
         let actions = html! {
+            (table_button_filter(TableButtonFilter {
+                panel: form(FormOpts {
+                    attrs: form_hx_get_route::<ItemTableKey, FeedListRouteTag>(
+                        FeedListRouteTag::new(self.feed_slug.clone()),
+                    ),
+                    inputs: html! {
+                        (input_text(InputText {
+                            name: "sort",
+                            value: &self.sort,
+                            hidden: true,
+                            ..Default::default()
+                        }))
+                        (render_filter_inputs(&self.filter_fields, &self.filter_values))
+                    },
+                    actions: html! {
+                        (container_row("flex gap-2", html! {
+                            (button_submit(ButtonSubmit { label: "Apply", ..Default::default() }))
+                            (button_clear(Default::default()))
+                        }))
+                    },
+                    ..Default::default()
+                }),
+                content_classes: FILTER_PANEL_CLASSES.into(),
+            }))
             (button_post_route(
                 FeedRefreshRouteTag::new(self.feed_slug.clone()),
                 "Refresh",

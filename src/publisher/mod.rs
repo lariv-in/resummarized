@@ -3,12 +3,15 @@
 pub mod apps;
 pub mod create_modals;
 pub mod crumbs;
+pub mod email;
 pub mod entities;
 pub mod forms;
 pub mod handlers;
 pub mod keys;
 pub mod migrations;
+pub mod preferences;
 pub mod routes;
+pub mod rune_env;
 pub mod scope;
 pub mod state;
 pub mod templates;
@@ -38,6 +41,7 @@ define_plugin_install! {
     /// Register Publisher migrations, routes, templates, and dashboard tile.
     steps: [
         apps(apps::Hook),
+        rune_env(rune_env::Hook),
         migrations(migrations::Hook),
         templates(templates::Hook),
         slots(templates::SlotsHook),

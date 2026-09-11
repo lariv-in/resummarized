@@ -275,6 +275,16 @@ impl VoteField {
             Self::ReportDate => opt_date(item.report_issuance_date),
         }
     }
+
+    pub fn filter_kind(self) -> crate::list_filters::FilterKind {
+        match self {
+            Self::DateOfMeeting
+            | Self::DateOfRecord
+            | Self::ScrutinizerAppointed
+            | Self::ReportDate => crate::list_filters::FilterKind::Date,
+            _ => crate::list_filters::FilterKind::Text,
+        }
+    }
 }
 
 #[cfg(test)]

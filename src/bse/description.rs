@@ -56,6 +56,18 @@ macro_rules! assign_kind {
     }};
 }
 
+macro_rules! value_kind_of {
+    (text) => {
+        crate::list_filters::ValueKind::Text
+    };
+    (date) => {
+        crate::list_filters::ValueKind::Date
+    };
+    (datetime) => {
+        crate::list_filters::ValueKind::DateTime
+    };
+}
+
 macro_rules! display_kind {
     (text, $val:expr, $tz:expr) => {{
         let _ = $tz;
@@ -120,6 +132,12 @@ macro_rules! bse_desc_fields {
             pub fn display(self, fields: &BseDescriptionFields, tz: &str) -> String {
                 match self {
                     $(Self::$variant => display_kind!($kind, fields.$model_field, tz),)*
+                }
+            }
+
+            pub fn value_kind(self) -> crate::list_filters::ValueKind {
+                match self {
+                    $(Self::$variant => value_kind_of!($kind),)*
                 }
             }
 

@@ -12,6 +12,20 @@ pub fn subscribers_list_crumbs() -> Markup {
     }])
 }
 
+pub fn preferences_crumbs() -> Markup {
+    let list_url = SubscriberDefaultRouteTag.url();
+    breadcrumbs(&[
+        Crumb {
+            label: "Subscribers",
+            href: Some(&list_url),
+        },
+        Crumb {
+            label: "Preferences",
+            href: None,
+        },
+    ])
+}
+
 pub fn subscriber_crumbs(email: &str, id: i64, action: Option<&str>) -> Markup {
     let list_url = SubscriberDefaultRouteTag.url();
     let detail_url = SubscriberDetailRouteTag::new(id).url();

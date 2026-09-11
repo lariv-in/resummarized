@@ -226,6 +226,13 @@ impl ShpField {
             Self::PublicShares => opt_str(&item.public_shares),
         }
     }
+
+    pub fn filter_kind(self) -> crate::list_filters::FilterKind {
+        match self {
+            Self::DateOfReport => crate::list_filters::FilterKind::Date,
+            _ => crate::list_filters::FilterKind::Text,
+        }
+    }
 }
 
 #[cfg(test)]
