@@ -78,16 +78,16 @@ const STATIC_ASSETS: &[StaticAsset] = &[
         bytes: include_bytes!("../assets/static/logo-on-dark.svg"),
     },
     StaticAsset {
-        name: "C059-Roman.otf",
-        bytes: include_bytes!("../assets/theme/fonts/C059-Roman.otf"),
+        name: "JunicodeVF-Roman.woff2",
+        bytes: include_bytes!("../assets/theme/fonts/JunicodeVF-Roman.woff2"),
     },
     StaticAsset {
-        name: "C059-Italic.otf",
-        bytes: include_bytes!("../assets/theme/fonts/C059-Italic.otf"),
+        name: "JunicodeVF-Italic.woff2",
+        bytes: include_bytes!("../assets/theme/fonts/JunicodeVF-Italic.woff2"),
     },
     StaticAsset {
-        name: "C059-Bold.otf",
-        bytes: include_bytes!("../assets/theme/fonts/C059-Bold.otf"),
+        name: "MonaspaceRadonVar.woff2",
+        bytes: include_bytes!("../assets/theme/fonts/MonaspaceRadonVar.woff2"),
     },
 ];
 

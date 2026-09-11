@@ -1,24 +1,29 @@
+/* Junicode VF (SIL OFL): https://github.com/psb1558/Junicode-font */
 @font-face {
-	font-family: "C059";
-	src: url("/static/C059-Roman.otf") format("opentype");
-	font-weight: 400;
+	font-family: "Junicode VF";
+	src: url("/static/JunicodeVF-Roman.woff2") format("woff2");
+	font-weight: 300 700;
+	font-stretch: 75% 125%;
 	font-style: normal;
 	font-display: swap;
 }
 
 @font-face {
-	font-family: "C059";
-	src: url("/static/C059-Italic.otf") format("opentype");
-	font-weight: 400;
+	font-family: "Junicode VF";
+	src: url("/static/JunicodeVF-Italic.woff2") format("woff2");
+	font-weight: 300 700;
+	font-stretch: 75% 125%;
 	font-style: italic;
 	font-display: swap;
 }
 
+/* Monaspace Radon Var (SIL OFL): https://github.com/githubnext/monaspace */
 @font-face {
-	font-family: "C059";
-	src: url("/static/C059-Bold.otf") format("opentype");
-	font-weight: 700;
-	font-style: normal;
+	font-family: "Monaspace Radon Var";
+	src: url("/static/MonaspaceRadonVar.woff2") format("woff2");
+	font-weight: 200 800;
+	font-stretch: 100% 125%;
+	font-style: oblique -11deg 0deg;
 	font-display: swap;
 }
 
@@ -38,8 +43,8 @@
 	--text-main: #000000;
 	--text-muted: rgba(0, 0, 0, 0.62);
 	--text-on-ink: #ffffff;
-	--font-display: "C059", "Century Schoolbook", serif;
-	--font-body: "C059", "Century Schoolbook", serif;
+	--font-display: "Monaspace Radon Var", ui-monospace, monospace;
+	--font-body: "Junicode VF", "Times New Roman", serif;
 	--nav-h: 4.5rem;
 	--measure: 1120px;
 	--gutter: 2.5rem;
@@ -54,8 +59,10 @@ html {
 	background-color: var(--bg-base);
 	color: var(--text-main);
 	font-family: var(--font-body);
-	font-size: 18px;
-	line-height: 1.55;
+	font-weight: 400;
+	font-size: 19px;
+	line-height: 1.6;
+	font-synthesis: none;
 	overflow-x: hidden;
 }
 
@@ -80,9 +87,9 @@ h2,
 h3,
 h4 {
 	font-family: var(--font-display);
-	font-weight: 700;
-	letter-spacing: -0.01em;
-	line-height: 1.15;
+	font-weight: 600;
+	letter-spacing: -0.03em;
+	line-height: 1.2;
 	color: var(--text-main);
 }
 
@@ -119,9 +126,9 @@ h4 { font-size: 1.05rem; }
 	justify-content: center;
 	padding: 0.75rem 1.35rem;
 	border-radius: var(--radius);
-	font-family: var(--font-body);
-	font-weight: 700;
-	font-size: 1rem;
+	font-family: var(--font-display);
+	font-weight: 600;
+	font-size: 0.95rem;
 	border: none;
 	cursor: pointer;
 	transition: var(--transition);
@@ -224,7 +231,8 @@ h4 { font-size: 1.05rem; }
 	border-radius: var(--radius);
 	background: var(--color-accent);
 	color: #fff !important;
-	font-weight: 700;
+	font-family: var(--font-display);
+	font-weight: 600;
 }
 
 .nav-cta:hover,
@@ -324,7 +332,7 @@ h4 { font-size: 1.05rem; }
 
 .hero-title,
 .gjs-hero-title {
-	max-width: 18ch;
+	max-width: 22ch;
 	margin-bottom: 1rem;
 	color: var(--text-on-ink);
 }

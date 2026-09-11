@@ -21,3 +21,9 @@ poll_interval_secs = 300
 
 [nasdaq]
 poll_interval_secs = 300
+
+[euronext]
+poll_interval_secs = 300
+
+[jpx]
+poll_interval_secs = 300

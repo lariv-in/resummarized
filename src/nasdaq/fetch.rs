@@ -75,10 +75,10 @@ async fn fetch_one(state: &NasdaqState, kind: NasdaqFeedKind) -> anyhow::Result<
 
 async fn download_body(state: &NasdaqState, url: &str) -> anyhow::Result<String> {
     let sec = url.contains("sec.gov");
-    let request = state.client.get(url).header(
-        "User-Agent",
-        if sec { SEC_UA } else { IR_UA },
-    );
+    let request = state
+        .client
+        .get(url)
+        .header("User-Agent", if sec { SEC_UA } else { IR_UA });
     let request = if sec {
         request.header(
             "Accept",

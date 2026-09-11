@@ -5,6 +5,8 @@
 
 pub mod bse;
 pub mod dates;
+pub mod euronext;
+pub mod jpx;
 pub mod list_filters;
 pub mod nasdaq;
 pub mod nse;
