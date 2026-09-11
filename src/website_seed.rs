@@ -100,16 +100,16 @@ async fn ensure_homepage_state(
     store: &DynFilestore,
 ) -> anyhow::Result<()> {
     let media_urls = ensure_static_assets(db, store).await?;
-    let css = rewrite_static_urls(std::str::from_utf8(THEME_CSS)?, &media_urls);
+    let css = rewrite_static_urls(std::str::from_utf8(THEME_CSS)?, &media_urls)?;
     ensure_custom_theme(db, store, css.as_bytes()).await?;
-    let html = rewrite_static_urls(HOMEPAGE_HTML, &media_urls);
+    let html = rewrite_static_urls(HOMEPAGE_HTML, &media_urls)?;
     let (page, page_rewritten) = ensure_page_vnode(db, store, PAGE_NAME, html.as_bytes()).await?;
     ensure_db_route(db, ROUTE_PATH, page.id, THEME, page_rewritten).await?;
     tracing::info!(
         page_id = page.id,
         "resummarized website: homepage route ready"
     );
-    let subscribe_html = rewrite_static_urls(SUBSCRIBE_HTML, &media_urls);
+    let subscribe_html = rewrite_static_urls(SUBSCRIBE_HTML, &media_urls)?;
     let (subscribe_page, subscribe_rewritten) =
         ensure_page_vnode(db, store, SUBSCRIBE_PAGE_NAME, subscribe_html.as_bytes()).await?;
     ensure_db_route(
@@ -182,12 +182,36 @@ async fn ensure_custom_theme(
     Ok(())
 }
 
-fn rewrite_static_urls(source: &str, urls: &[(String, String)]) -> String {
+fn first_hardcoded_media_url(source: &str) -> Option<&str> {
+    const PREFIX: &str = "/media/";
+    let mut from = 0;
+    while let Some(rel) = source[from..].find(PREFIX) {
+        let start = from + rel;
+        let rest = &source[start + PREFIX.len()..];
+        let digits = rest.bytes().take_while(u8::is_ascii_digit).count();
+        if digits > 0 {
+            let mut end = start + PREFIX.len() + digits;
+            if source.as_bytes().get(end) == Some(&b'/') {
+                end += 1;
+            }
+            return Some(&source[start..end]);
+        }
+        from = start + PREFIX.len();
+    }
+    None
+}
+
+fn rewrite_static_urls(source: &str, urls: &[(String, String)]) -> anyhow::Result<String> {
+    if let Some(url) = first_hardcoded_media_url(source) {
+        anyhow::bail!(
+            "website assets must use /static/{{filename}}, not hardcoded vnode URL {url}"
+        );
+    }
     let mut out = source.to_string();
     for (name, url) in urls {
         out = out.replace(&format!("/static/{name}"), url);
     }
-    out
+    Ok(out)
 }
 
 async fn ensure_page_vnode(
@@ -369,3 +393,46 @@ async fn ensure_db_route(
     tracing::info!(path, page_id, "resummarized website: created db route");
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        HOMEPAGE_HTML, SUBSCRIBE_HTML, THEME_CSS, first_hardcoded_media_url, rewrite_static_urls,
+    };
+
+    #[test]
+    fn seeded_assets_do_not_hardcode_media_vnode_ids() {
+        let css = std::str::from_utf8(THEME_CSS).expect("theme css is utf-8");
+        for (label, source) in [
+            ("homepage.html", HOMEPAGE_HTML),
+            ("subscribe.html", SUBSCRIBE_HTML),
+            ("resummarized.css", css),
+        ] {
+            assert_eq!(
+                first_hardcoded_media_url(source),
+                None,
+                "{label} hardcodes a /media/{{id}}/ vnode URL"
+            );
+        }
+    }
+
+    #[test]
+    fn rewrite_static_urls_rejects_hardcoded_media_ids() {
+        let err = rewrite_static_urls(r#"<img src="/media/23/">"#, &[]).unwrap_err();
+        assert!(err.to_string().contains("/media/23/"), "{err}");
+    }
+
+    #[test]
+    fn rewrite_static_urls_rewrites_static_paths() {
+        let html = rewrite_static_urls(
+            r#"<img src="/static/logo.svg"><img src="/static/logo-on-dark.svg">"#,
+            &[
+                ("logo.svg".into(), "/media/9/".into()),
+                ("logo-on-dark.svg".into(), "/media/10/".into()),
+            ],
+        )
+        .expect("portable /static/ paths should rewrite");
+        assert_eq!(html, r#"<img src="/media/9/"><img src="/media/10/">"#);
+    }
+}
+
