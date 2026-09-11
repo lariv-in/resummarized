@@ -1,4 +1,4 @@
-//! Idempotent seed for the Resummarized public homepage, static media, and Custom theme.
+//! Idempotent seed for the Resummarized public homepage, subscribe page, static media, and Custom theme.
 //!
 //! Registered as a [`lariv_rs::hooks::RunSeed`] hook so it runs only for `seed`, not `serve`.
 
@@ -44,7 +44,7 @@ where
     M: GetByTag<WebsiteTag, WebsiteIdx, Value = WebsiteState> + Sync,
 {
     async fn run_seed(app: &MountedApp<M>) -> anyhow::Result<()> {
-        tracing::info!("resummarized website: seeding homepage and media");
+        tracing::info!("resummarized website: seeding homepage, subscribe page, and media");
         ensure_homepage(app.get_capability_output::<WebsiteTag, WebsiteIdx>()).await?;
         tracing::info!("resummarized website: seed complete");
         Ok(())
@@ -52,10 +52,13 @@ where
 }
 
 const HOMEPAGE_HTML: &str = include_str!("../assets/homepage.html");
+const SUBSCRIBE_HTML: &str = include_str!("../assets/subscribe.html");
 const THEME_CSS: &[u8] = include_bytes!("../assets/theme/resummarized.css");
 const THEME_JS: &[u8] = include_bytes!("../assets/theme/resummarized.js");
 const ROUTE_PATH: &str = "/";
 const PAGE_NAME: &str = "index.html";
+const SUBSCRIBE_ROUTE_PATH: &str = "/subscribe";
+const SUBSCRIBE_PAGE_NAME: &str = "subscribe.html";
 const THEME_CSS_NAME: &str = "resummarized.css";
 const THEME_JS_NAME: &str = "resummarized.js";
 const THEME: &str = CUSTOM_THEME_ID;
@@ -100,11 +103,26 @@ async fn ensure_homepage_state(
     let css = rewrite_static_urls(std::str::from_utf8(THEME_CSS)?, &media_urls);
     ensure_custom_theme(db, store, css.as_bytes()).await?;
     let html = rewrite_static_urls(HOMEPAGE_HTML, &media_urls);
-    let (page, page_rewritten) = ensure_page_vnode(db, store, html.as_bytes()).await?;
+    let (page, page_rewritten) = ensure_page_vnode(db, store, PAGE_NAME, html.as_bytes()).await?;
     ensure_db_route(db, ROUTE_PATH, page.id, THEME, page_rewritten).await?;
     tracing::info!(
         page_id = page.id,
         "resummarized website: homepage route ready"
+    );
+    let subscribe_html = rewrite_static_urls(SUBSCRIBE_HTML, &media_urls);
+    let (subscribe_page, subscribe_rewritten) =
+        ensure_page_vnode(db, store, SUBSCRIBE_PAGE_NAME, subscribe_html.as_bytes()).await?;
+    ensure_db_route(
+        db,
+        SUBSCRIBE_ROUTE_PATH,
+        subscribe_page.id,
+        THEME,
+        subscribe_rewritten,
+    )
+    .await?;
+    tracing::info!(
+        page_id = subscribe_page.id,
+        "resummarized website: subscribe route ready"
     );
     Ok(())
 }
@@ -175,6 +193,7 @@ fn rewrite_static_urls(source: &str, urls: &[(String, String)]) -> String {
 async fn ensure_page_vnode(
     db: &DatabaseConnection,
     store: &DynFilestore,
+    name: &str,
     html: &[u8],
 ) -> anyhow::Result<(lariv_rs::plugins::filesystem::entities::VNode, bool)> {
     let segments = ["website".into(), "pages".into()];
@@ -192,7 +211,7 @@ async fn ensure_page_vnode(
         None => None,
     };
 
-    ensure_file_vnode(db, store, parent_id, parent.as_ref(), PAGE_NAME, html).await
+    ensure_file_vnode(db, store, parent_id, parent.as_ref(), name, html).await
 }
 
 /// Seeds blobs + `/static/{name}` aliases. Returns `(filename, /media/{id}/)` pairs

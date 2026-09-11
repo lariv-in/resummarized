@@ -1,6 +1,6 @@
 use lariv_rs::html_form::{
     html_form,
-    widgets::{CodeEditor, Datetime, ManyToMany, Password, Section, Text},
+    widgets::{CodeEditor, Datetime, Email, ManyToMany, Password, Section, Text},
 };
 
 #[html_form]
@@ -10,6 +10,12 @@ pub struct SubscriberForm {
 
     #[form(label = "Subscription date", required, widget = Datetime)]
     pub subscription_date: String,
+}
+
+#[html_form]
+pub struct PublicSubscribeForm {
+    #[form(label = "Email", widget = Email, required, name = "email")]
+    pub email: String,
 }
 
 #[html_form]

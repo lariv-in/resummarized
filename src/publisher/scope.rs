@@ -75,10 +75,56 @@ pub async fn find_subscriber_scoped(
     )
 }
 
+pub fn normalize_subscriber_email(email: &str) -> String {
+    email.trim().to_lowercase()
+}
+
+pub fn email_looks_valid(email: &str) -> bool {
+    let Some((local, domain)) = email.split_once('@') else {
+        return false;
+    };
+    !local.is_empty()
+        && !domain.is_empty()
+        && domain.contains('.')
+        && !domain.starts_with('.')
+        && !domain.ends_with('.')
+        && !email.contains(' ')
+}
+
+pub fn is_unique_violation(err: &sea_orm::DbErr) -> bool {
+    let msg = err.to_string().to_lowercase();
+    msg.contains("unique") || msg.contains("duplicate")
+}
+
 pub async fn email_in_use(db: &DatabaseConnection, email: &str, exclude_id: Option<i64>) -> bool {
+    let email = normalize_subscriber_email(email);
     let mut query = SubscriberEntity::find().filter(subscriber::Column::Email.eq(email));
     if let Some(id) = exclude_id {
         query = query.filter(subscriber::Column::Id.ne(id));
     }
     opt_or_log(query.one(db).await, "check subscriber email").is_some()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{email_looks_valid, normalize_subscriber_email};
+
+    #[test]
+    fn normalize_trims_and_lowercases() {
+        assert_eq!(
+            normalize_subscriber_email("  Foo.Bar@Example.COM "),
+            "foo.bar@example.com"
+        );
+    }
+
+    #[test]
+    fn email_looks_valid_accepts_simple_addresses() {
+        assert!(email_looks_valid("reader@example.com"));
+        assert!(!email_looks_valid(""));
+        assert!(!email_looks_valid("no-at-sign"));
+        assert!(!email_looks_valid("@example.com"));
+        assert!(!email_looks_valid("reader@"));
+        assert!(!email_looks_valid("reader@localhost"));
+        assert!(!email_looks_valid("reader @example.com"));
+    }
 }

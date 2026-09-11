@@ -1,0 +1,89 @@
+<body>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>Subscribe — Resummarized</title>
+	<nav data-gjs-type="p_website.navbar" data-logo-alt="Resummarized" data-logo-src="/static/logo.svg"
+		data-nav-links='[{"title":"Inside the letter","path":"/#inside"},{"title":"How it works","path":"/#how"},{"title":"Get the letter","path":"/subscribe"}]'
+		data-variant="resummarized" class="gjs-navbar site-header">
+		<div class="container nav-container">
+			<a href="/" class="gjs-navbar-brand brand">
+				<img alt="Resummarized" data-gjs-type="p_website.navbar-logo" class="gjs-navbar-logo brand-logo"
+					src="/static/logo.svg">
+			</a>
+			<button type="button" aria-label="Toggle navigation" aria-expanded="false"
+				class="gjs-navbar-menu-btn mobile-nav-toggle">
+				<span class="hamburger-bar"></span>
+				<span class="hamburger-bar"></span>
+				<span class="hamburger-bar"></span>
+			</button>
+			<ul class="gjs-navbar-links gjs-navbar-desktop nav-menu">
+				<li><a href="/#inside" class="nav-link">Inside the letter</a></li>
+				<li><a href="/#how" class="nav-link">How it works</a></li>
+				<li><a href="/subscribe" class="nav-cta">Get the letter</a></li>
+			</ul>
+		</div>
+	</nav>
+	<section data-gjs-type="p_website.cta" data-show-button="false" class="gjs-cta section subscribe-main">
+		<div class="container">
+			<div class="gjs-cta-box cta-box">
+				<h1 class="gjs-cta-title">Get the weekly letter</h1>
+				<p class="gjs-cta-text lead">Resummarized lands in your inbox once a week, a summary of how the market
+					moved.</p>
+				<p class="subscribe-status is-ok" data-subscribe-ok hidden aria-live="polite">You're on the list. The
+					next letter will come to this address.</p>
+				<p class="subscribe-status is-error" data-subscribe-error hidden aria-live="polite"></p>
+				<form class="subscribe-form" method="post" action="/subscribe/join">
+					<label class="subscribe-label" for="subscribe-email">Email address</label>
+					<div class="subscribe-row">
+						<input id="subscribe-email" class="subscribe-input" type="email" name="email" required
+							autocomplete="email" inputmode="email" placeholder="you@example.com">
+						<button type="submit" class="gjs-button btn btn-primary">Subscribe</button>
+					</div>
+				</form>
+			</div>
+		</div>
+	</section>
+	<footer class="site-footer">
+		<div class="container footer-grid">
+			<div>
+				<a href="/" aria-label="Resummarized" class="brand footer-brand">
+					<img src="/static/logo-on-dark.svg" alt="Resummarized" class="brand-logo" />
+				</a>
+				<p class="footer-tagline">A weekly newsletter on stock market movements, summarized and ready to read.</p>
+			</div>
+			<div>
+				<h4>The letter</h4>
+				<ul class="footer-links">
+					<li><a href="/#inside">Inside the letter</a></li>
+					<li><a href="/#how">How it works</a></li>
+					<li><a href="/subscribe">Get the letter</a></li>
+				</ul>
+			</div>
+		</div>
+		<div class="container footer-bottom">
+			<p>© 2026 Resummarized. All rights reserved.</p>
+		</div>
+	</footer>
+	<script>
+		(function () {
+			var params = new URLSearchParams(window.location.search);
+			var ok = document.querySelector("[data-subscribe-ok]");
+			var err = document.querySelector("[data-subscribe-error]");
+			var form = document.querySelector(".subscribe-form");
+			var messages = {
+				invalid: "Enter a valid email address.",
+				taken: "This email is already on the list.",
+				save: "Something went wrong. Please try again."
+			};
+			if (params.get("ok") && ok) {
+				ok.hidden = false;
+				if (form) form.hidden = true;
+			}
+			var code = params.get("error");
+			if (code && err) {
+				err.hidden = false;
+				err.textContent = messages[code] || messages.save;
+			}
+		})();
+	</script>
+</body>

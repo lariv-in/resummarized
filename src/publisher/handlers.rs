@@ -36,7 +36,7 @@ use super::{
         PublisherPreferences,
         subscriber::{self, Entity as SubscriberEntity},
     },
-    forms::{SendEmailForm, SubscriberForm},
+    forms::{PublicSubscribeForm, SendEmailForm, SubscriberForm},
     keys::{
         SubscriberCreateModalKey, SubscriberDeleteModalKey, SubscriberEditModalKey,
         SubscriberSendEmailModalKey, SubscriberTableKey,
@@ -47,8 +47,8 @@ use super::{
         SubscriberDetailRouteTag,
     },
     scope::{
-        apply_email_filter, apply_subscriber_sort, email_in_use, find_subscriber_scoped,
-        scope_superuser,
+        apply_email_filter, apply_subscriber_sort, email_in_use, email_looks_valid,
+        find_subscriber_scoped, is_unique_violation, normalize_subscriber_email, scope_superuser,
     },
     state::PublisherState,
     templates::{
@@ -201,7 +201,7 @@ pub async fn create_post(
     if !ctx.user.is_superuser {
         return Redirect::to(&list_url()).into_response();
     }
-    let email = form.email.trim().to_string();
+    let email = normalize_subscriber_email(&form.email);
     if email.is_empty() {
         return html_built_page_with_slots(
             &create_modal_from_form(&form, &q, "Email is required".into()),
@@ -250,6 +250,39 @@ pub async fn create_post(
             &SlotCtx::from_auth(&ctx),
         )
         .into_response(),
+    }
+}
+
+fn subscribe_redirect(query: &str) -> Redirect {
+    Redirect::to(&format!("/subscribe?{query}"))
+}
+
+pub async fn subscribe_post(
+    Cap(state): Cap<PublisherState>,
+    HtmlFormBody(form): HtmlFormBody<PublicSubscribeForm>,
+) -> Redirect {
+    let email = normalize_subscriber_email(&form.email);
+    if !email_looks_valid(&email) {
+        return subscribe_redirect("error=invalid");
+    }
+    if email_in_use(&state.db, &email, None).await {
+        return subscribe_redirect("error=taken");
+    }
+    let now = Utc::now();
+    let model = subscriber::ActiveModel {
+        id: Default::default(),
+        created_at: Set(Some(now)),
+        updated_at: Set(Some(now)),
+        email: Set(email),
+        subscription_date: Set(now),
+    };
+    match model.insert(&state.db).await {
+        Ok(_) => subscribe_redirect("ok=1"),
+        Err(e) if is_unique_violation(&e) => subscribe_redirect("error=taken"),
+        Err(e) => {
+            tracing::error!(error = %e, "failed to create public subscriber");
+            subscribe_redirect("error=save")
+        }
     }
 }
 
@@ -306,7 +339,7 @@ pub async fn edit_post(
     let Some(existing) = find_subscriber_scoped(&state.db, id, &ctx).await else {
         return Redirect::to(&list_url()).into_response();
     };
-    let email = form.email.trim().to_string();
+    let email = normalize_subscriber_email(&form.email);
     if email.is_empty() {
         return html_built_page_with_slots(
             &edit_modal_from_form(id, &form, q.form_name(), "Email is required".into()),

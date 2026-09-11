@@ -16,6 +16,7 @@ lariv_rs::define_plugin_routes! {
         post SubscriberEditPostRouteTag, "/publisher/subscribers/{id}/edit", handlers::edit_post;
         get SubscriberDeleteGetRouteTag, "/publisher/subscribers/{id}/delete", handlers::delete_get, modal;
         post SubscriberDeletePostRouteTag, "/publisher/subscribers/{id}/delete", bare handlers::delete_post, fragment(SubscriberDeleteModalKey);
+        post SubscribePostRouteTag, "/subscribe/join", bare handlers::subscribe_post, redirect;
         get PublisherPrefsGetRouteTag, "/publisher/preferences", handlers::preferences_get;
         post PublisherPrefsPostRouteTag, "/publisher/preferences", handlers::preferences_post;
     ]
