@@ -74,10 +74,6 @@ const STATIC_ASSETS: &[StaticAsset] = &[
         bytes: include_bytes!("../assets/static/logo.svg"),
     },
     StaticAsset {
-        name: "logo-on-dark.svg",
-        bytes: include_bytes!("../assets/static/logo-on-dark.svg"),
-    },
-    StaticAsset {
         name: "JunicodeVF-Roman.woff2",
         bytes: include_bytes!("../assets/theme/fonts/JunicodeVF-Roman.woff2"),
     },
@@ -425,13 +421,10 @@ mod tests {
     #[test]
     fn rewrite_static_urls_rewrites_static_paths() {
         let html = rewrite_static_urls(
-            r#"<img src="/static/logo.svg"><img src="/static/logo-on-dark.svg">"#,
-            &[
-                ("logo.svg".into(), "/media/9/".into()),
-                ("logo-on-dark.svg".into(), "/media/10/".into()),
-            ],
+            r#"<img src="/static/logo.svg">"#,
+            &[("logo.svg".into(), "/media/9/".into())],
         )
         .expect("portable /static/ paths should rewrite");
-        assert_eq!(html, r#"<img src="/media/9/"><img src="/media/10/">"#);
+        assert_eq!(html, r#"<img src="/media/9/">"#);
     }
 }

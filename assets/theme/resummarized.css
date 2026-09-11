@@ -199,6 +199,7 @@ h4 { font-size: 1.05rem; }
 .footer-brand .brand-logo {
 	height: 2.6rem;
 	max-width: 20rem;
+	filter: invert(1) hue-rotate(180deg);
 }
 
 .gjs-navbar .gjs-navbar-links,
