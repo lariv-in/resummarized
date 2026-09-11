@@ -29,10 +29,11 @@
 				<h1 class="gjs-cta-title">Get the weekly letter</h1>
 				<p class="gjs-cta-text lead">Resummarized lands in your inbox once a week, a summary of how the market
 					moved.</p>
-				<p class="subscribe-status is-ok" data-subscribe-ok hidden aria-live="polite">You're on the list. The
-					next letter will come to this address.</p>
+				<p class="subscribe-status is-ok" data-subscribe-ok hidden aria-live="polite">You're subscribed. The
+					next weekly letter will land in this inbox.</p>
 				<p class="subscribe-status is-error" data-subscribe-error hidden aria-live="polite"></p>
 				<form class="subscribe-form" method="post" action="/subscribe/join">
+					<input type="hidden" name="csrf_token" value="{{ csrf_token() }}" autocomplete="off">
 					<label class="subscribe-label" for="subscribe-email">Email address</label>
 					<div class="subscribe-row">
 						<input id="subscribe-email" class="subscribe-input" type="email" name="email" required
@@ -72,7 +73,7 @@
 			var form = document.querySelector(".subscribe-form");
 			var messages = {
 				invalid: "Enter a valid email address.",
-				taken: "This email is already on the list.",
+				taken: "This email is already subscribed.",
 				save: "Something went wrong. Please try again."
 			};
 			if (params.get("ok") && ok) {

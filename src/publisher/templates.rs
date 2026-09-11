@@ -13,7 +13,7 @@ use lariv_rs::{
         sidebar_nav_items_pane, sort_indicator, table_button_bulk_actions, table_button_filter,
         table_create_button, table_pagination,
     },
-    html_form::{FormCtx, HtmlForm},
+    html_form::{CsrfToken, FormCtx, HtmlForm},
     http::ProvideRequestCaps,
     template::{RenderAppPane, RenderTemplate, TemplateCapability, TemplateOf, TemplateRegistrar},
     web::{modal_create_post_query, modal_create_post_url, modal_edit_post_url},
@@ -311,12 +311,12 @@ impl SubscriberListPage {
             .collect();
         let mut actions = html! {
             (table_button_filter(TableButtonFilter {
-                panel: form(FormOpts {
+                panel: form(&CsrfToken::current(), FormOpts {
                     attrs: form_hx_get_route::<SubscriberTableKey, SubscriberDefaultRouteTag>(
                         SubscriberDefaultRouteTag,
                     ),
                     inputs: SubscriberFilterForm::render_inputs(
-                        &FormCtx::form::<SubscriberFilterForm>()
+                        &FormCtx::form::<SubscriberFilterForm>(CsrfToken::current())
                             .value(SubscriberFilterFormField::Email, &self.filter_email),
                     ),
                     actions: html! {
@@ -503,7 +503,7 @@ impl RenderTemplate for SubscriberCreateModalPage {
             &self.form_name,
             html! {
                 h3 class="font-bold text-lg mb-4" { "New subscriber" }
-                (form(FormOpts {
+                (form(&CsrfToken::current(), FormOpts {
                     attrs: form_hx_post_url::<SubscriberCreateModalKey>(&modal_create_post_query(
                         SubscriberCreatePostRouteTag,
                         form_name,
@@ -512,7 +512,7 @@ impl RenderTemplate for SubscriberCreateModalPage {
                     )),
                     form_error: Some(self.error.as_str()).filter(|e| !e.is_empty()),
                     inputs: SubscriberForm::render_inputs(
-                        &FormCtx::form::<SubscriberForm>()
+                        &FormCtx::form::<SubscriberForm>(CsrfToken::current())
                             .value(SubscriberFormField::Email, &self.email)
                             .value(
                                 SubscriberFormField::SubscriptionDate,
@@ -545,14 +545,14 @@ impl RenderTemplate for SubscriberEditModalPage {
             &self.form_name,
             html! {
                 h3 class="font-bold text-lg mb-4" { "Edit subscriber" }
-                (form(FormOpts {
+                (form(&CsrfToken::current(), FormOpts {
                     attrs: form_hx_post_url::<SubscriberEditModalKey>(&modal_edit_post_url(
                         SubscriberEditPostRouteTag::new(self.id),
                         &self.form_name,
                     )),
                     form_error: Some(self.error.as_str()).filter(|e| !e.is_empty()),
                     inputs: SubscriberForm::render_inputs(
-                        &FormCtx::form::<SubscriberForm>()
+                        &FormCtx::form::<SubscriberForm>(CsrfToken::current())
                             .value(SubscriberFormField::Email, &self.email)
                             .value(
                                 SubscriberFormField::SubscriptionDate,
@@ -618,37 +618,40 @@ pub struct PublisherPreferencesPage {
 
 impl PublisherPreferencesPage {
     fn body(&self) -> Markup {
-        form(FormOpts {
-            attrs: form_hx_post_main(PublisherPrefsPostRouteTag),
-            title: "Publisher Preferences",
-            subtitle: "HTML email template and SMTP settings for subscriber mailings",
-            form_error: Some(self.error.as_str()).filter(|e| !e.is_empty()),
-            inputs: PreferencesForm::render_inputs(
-                &FormCtx::form::<PreferencesForm>()
-                    .value(
-                        PreferencesFormField::HtmlTemplate,
-                        self.html_template.as_str(),
-                    )
-                    .value(PreferencesFormField::SmtpHost, self.smtp_host.as_str())
-                    .value(PreferencesFormField::SmtpPort, self.smtp_port.as_str())
-                    .value(
-                        PreferencesFormField::SmtpUsername,
-                        self.smtp_username.as_str(),
-                    )
-                    .value(
-                        PreferencesFormField::SmtpPassword,
-                        self.smtp_password.as_str(),
-                    )
-                    .value(PreferencesFormField::SmtpFrom, self.smtp_from.as_str()),
-            ),
-            actions: html! {
-                (button_submit(ButtonSubmit {
-                    label: "Save Preferences",
-                    ..Default::default()
-                }))
+        form(
+            &CsrfToken::current(),
+            FormOpts {
+                attrs: form_hx_post_main(PublisherPrefsPostRouteTag),
+                title: "Publisher Preferences",
+                subtitle: "HTML email template and SMTP settings for subscriber mailings",
+                form_error: Some(self.error.as_str()).filter(|e| !e.is_empty()),
+                inputs: PreferencesForm::render_inputs(
+                    &FormCtx::form::<PreferencesForm>(CsrfToken::current())
+                        .value(
+                            PreferencesFormField::HtmlTemplate,
+                            self.html_template.as_str(),
+                        )
+                        .value(PreferencesFormField::SmtpHost, self.smtp_host.as_str())
+                        .value(PreferencesFormField::SmtpPort, self.smtp_port.as_str())
+                        .value(
+                            PreferencesFormField::SmtpUsername,
+                            self.smtp_username.as_str(),
+                        )
+                        .value(
+                            PreferencesFormField::SmtpPassword,
+                            self.smtp_password.as_str(),
+                        )
+                        .value(PreferencesFormField::SmtpFrom, self.smtp_from.as_str()),
+                ),
+                actions: html! {
+                    (button_submit(ButtonSubmit {
+                        label: "Save Preferences",
+                        ..Default::default()
+                    }))
+                },
+                ..Default::default()
             },
-            ..Default::default()
-        })
+        )
     }
 }
 
@@ -734,13 +737,13 @@ impl RenderTemplate for SubscriberSendEmailModalPage {
             &self.form_name,
             html! {
                 h3 class="font-bold text-lg mb-4" { "Send email" }
-                (form(FormOpts {
+                (form(&CsrfToken::current(), FormOpts {
                     attrs: form_hx_post_url::<SubscriberSendEmailModalKey>(&post_url),
                     subtitle: &subtitle,
                     form_error: Some(self.error.as_str()).filter(|e| !e.is_empty()),
                     inputs: html! {
                         (SendEmailForm::render_inputs(
-                            &FormCtx::form::<SendEmailForm>()
+                            &FormCtx::form::<SendEmailForm>(CsrfToken::current())
                                 .value(SendEmailFormField::Subject, &self.subject)
                                 .m2m(SendEmailFormField::Attachments, &self.attachments),
                         ))

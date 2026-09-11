@@ -13,6 +13,7 @@ use lariv_rs::{
         layout_sidebar, pagination_pages, row_attr_navigate_route, shell_scaffold, sidebar_menu,
         sidebar_nav_items_pane, sort_indicator, table_button_filter, table_pagination,
     },
+    html_form::CsrfToken,
     http::ProvideRequestCaps,
     template::{RenderAppPane, RenderTemplate, TemplateCapability, TemplateOf, TemplateRegistrar},
 };
@@ -272,7 +273,7 @@ impl FeedItemListPage {
             .collect();
         let actions = html! {
             (table_button_filter(TableButtonFilter {
-                panel: form(FormOpts {
+                panel: form(&CsrfToken::current(), FormOpts {
                     attrs: form_hx_get_route::<ItemTableKey, FeedListRouteTag>(
                         FeedListRouteTag::new(self.feed_slug.clone()),
                     ),
