@@ -1,4 +1,4 @@
-//! Shared trigram + datetime-range search for BSE/NSE Rune bindings.
+//! Shared trigram + datetime-range search for BSE/NSE/Nasdaq Rune bindings.
 
 use chrono::{DateTime, Utc};
 use lariv_rs::db::trigram;

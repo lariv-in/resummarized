@@ -435,4 +435,3 @@ mod tests {
         assert_eq!(html, r#"<img src="/media/9/"><img src="/media/10/">"#);
     }
 }
-

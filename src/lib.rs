@@ -6,6 +6,7 @@
 pub mod bse;
 pub mod dates;
 pub mod list_filters;
+pub mod nasdaq;
 pub mod nse;
 pub mod publisher;
 mod search;

@@ -9,7 +9,7 @@ path = "src/main.rs"
 
 [dependencies]
 lariv-rs = { version = "0.1.0",
-	git = "https://github.com/lariv-in/lariv-rs", rev = "26d94255e04757692dfcd7ca7210731a3fa5dfba",
+	git = "https://github.com/lariv-in/lariv-rs", rev = "9dea5bee5909226d3d3e952c2651207250afd730",
 	# path = "../../lariv-rs",
 	default-features = false, features = [
 		"plugin-users",
@@ -33,6 +33,8 @@ maud = { version = "0.27", features = ["axum"] }
 serde = { version = "1", features = ["derive"] }
 reqwest = { version = "0.12", default-features = false, features = [
 	"rustls-tls",
+	"native-tls",
+	"native-tls-alpn",
 	"cookies",
 	"gzip",
 	"brotli",

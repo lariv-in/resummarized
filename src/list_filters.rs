@@ -1,4 +1,4 @@
-//! Shared list-table filter query helpers and filter-form inputs for NSE/BSE.
+//! Shared list-table filter query helpers and filter-form inputs for NSE/BSE/Nasdaq.
 
 use std::collections::HashMap;
 

@@ -18,3 +18,6 @@ poll_interval_secs = 300
 
 [bse]
 poll_interval_secs = 300
+
+[nasdaq]
+poll_interval_secs = 300
