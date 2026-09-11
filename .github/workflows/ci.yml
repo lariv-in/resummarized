@@ -19,6 +19,7 @@ jobs:
         with:
           shared-key: check
           save-if: ${{ github.ref == 'refs/heads/master' }}
+      - run: sudo apt install libarchive-dev
       - run: cargo check --workspace
 
   # Warm Release-Cache on master (tags can restore it) and upload the LTO'd
