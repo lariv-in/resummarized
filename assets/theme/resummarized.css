@@ -1,7 +1,7 @@
 /* Junicode VF (SIL OFL): https://github.com/psb1558/Junicode-font */
 @font-face {
 	font-family: "Junicode VF";
-	src: url("/static/JunicodeVF-Roman.woff2") format("woff2");
+	src: url("{{ media_url('/website/static/JunicodeVF-Roman.woff2') }}") format("woff2");
 	font-weight: 300 700;
 	font-stretch: 75% 125%;
 	font-style: normal;
@@ -10,7 +10,7 @@
 
 @font-face {
 	font-family: "Junicode VF";
-	src: url("/static/JunicodeVF-Italic.woff2") format("woff2");
+	src: url("{{ media_url('/website/static/JunicodeVF-Italic.woff2') }}") format("woff2");
 	font-weight: 300 700;
 	font-stretch: 75% 125%;
 	font-style: italic;
@@ -20,7 +20,7 @@
 /* Monaspace Radon Var (SIL OFL): https://github.com/githubnext/monaspace */
 @font-face {
 	font-family: "Monaspace Radon Var";
-	src: url("/static/MonaspaceRadonVar.woff2") format("woff2");
+	src: url("{{ media_url('/website/static/MonaspaceRadonVar.woff2') }}") format("woff2");
 	font-weight: 200 800;
 	font-stretch: 100% 125%;
 	font-style: oblique -11deg 0deg;

@@ -18,6 +18,7 @@ use lariv_rs::plugins::website::{
     preferences::{self, CUSTOM_THEME_ID},
     render,
     state::WebsiteState,
+    template_funcs,
 };
 use lariv_rs::traits::get::GetByTag;
 use sea_orm::{
@@ -95,19 +96,26 @@ async fn ensure_homepage_state(
     db: &DatabaseConnection,
     store: &DynFilestore,
 ) -> anyhow::Result<()> {
-    let media_urls = ensure_static_assets(db, store).await?;
-    let css = rewrite_static_urls(std::str::from_utf8(THEME_CSS)?, &media_urls)?;
+    ensure_static_assets(db, store).await?;
+    remove_legacy_static_routes(db).await?;
+    for (label, source) in [
+        ("homepage.html", HOMEPAGE_HTML),
+        ("subscribe.html", SUBSCRIBE_HTML),
+    ] {
+        reject_nonportable_asset_urls(label, source)?;
+    }
+    // Theme CSS is injected after minijinja render, so resolve media_url at seed.
+    let css = render_seeded_template(db, std::str::from_utf8(THEME_CSS)?)?;
     ensure_custom_theme(db, store, css.as_bytes()).await?;
-    let html = rewrite_static_urls(HOMEPAGE_HTML, &media_urls)?;
-    let (page, page_rewritten) = ensure_page_vnode(db, store, PAGE_NAME, html.as_bytes()).await?;
+    let (page, page_rewritten) =
+        ensure_page_vnode(db, store, PAGE_NAME, HOMEPAGE_HTML.as_bytes()).await?;
     ensure_db_route(db, ROUTE_PATH, page.id, THEME, page_rewritten).await?;
     tracing::info!(
         page_id = page.id,
         "resummarized website: homepage route ready"
     );
-    let subscribe_html = rewrite_static_urls(SUBSCRIBE_HTML, &media_urls)?;
     let (subscribe_page, subscribe_rewritten) =
-        ensure_page_vnode(db, store, SUBSCRIBE_PAGE_NAME, subscribe_html.as_bytes()).await?;
+        ensure_page_vnode(db, store, SUBSCRIBE_PAGE_NAME, SUBSCRIBE_HTML.as_bytes()).await?;
     ensure_db_route(
         db,
         SUBSCRIBE_ROUTE_PATH,
@@ -197,17 +205,28 @@ fn first_hardcoded_media_url(source: &str) -> Option<&str> {
     None
 }
 
-fn rewrite_static_urls(source: &str, urls: &[(String, String)]) -> anyhow::Result<String> {
+fn has_legacy_static_url(source: &str) -> bool {
+    source.contains("\"/static/") || source.contains("'/static/")
+}
+
+fn reject_nonportable_asset_urls(label: &str, source: &str) -> anyhow::Result<()> {
     if let Some(url) = first_hardcoded_media_url(source) {
         anyhow::bail!(
-            "website assets must use /static/{{filename}}, not hardcoded vnode URL {url}"
+            "{label} must use media_url(\"/website/static/{{filename}}\"), not hardcoded vnode URL {url}"
         );
     }
-    let mut out = source.to_string();
-    for (name, url) in urls {
-        out = out.replace(&format!("/static/{name}"), url);
+    if has_legacy_static_url(source) {
+        anyhow::bail!("{label} must use media_url(\"/website/static/{{filename}}\")");
     }
-    Ok(out)
+    Ok(())
+}
+
+/// Resolve `media_url(...)` (and other template funcs) against the seeded VNode tree.
+fn render_seeded_template(db: &DatabaseConnection, source: &str) -> anyhow::Result<String> {
+    reject_nonportable_asset_urls("theme css", source)?;
+    let mut env = minijinja::Environment::new();
+    template_funcs::register_funcs(&mut env, db.clone(), "/".into(), vec![]);
+    Ok(env.render_str(source, ())?)
 }
 
 async fn ensure_page_vnode(
@@ -234,13 +253,8 @@ async fn ensure_page_vnode(
     ensure_file_vnode(db, store, parent_id, parent.as_ref(), name, html).await
 }
 
-/// Seeds blobs + `/static/{name}` aliases. Returns `(filename, /media/{id}/)` pairs
-/// so the homepage can use the website plugin's public asset route instead of the
-/// catch-all (which production proxies often intercept for `/static/`).
-async fn ensure_static_assets(
-    db: &DatabaseConnection,
-    store: &DynFilestore,
-) -> anyhow::Result<Vec<(String, String)>> {
+/// Seeds blobs under `website/static/` for `media_url("/website/static/{name}")`.
+async fn ensure_static_assets(db: &DatabaseConnection, store: &DynFilestore) -> anyhow::Result<()> {
     let segments = ["website".into(), "static".into()];
     let parent_id = node::ensure_directory_path(db, store, None, &segments)
         .await
@@ -256,7 +270,6 @@ async fn ensure_static_assets(
         None => None,
     };
 
-    let mut urls = Vec::with_capacity(STATIC_ASSETS.len());
     for asset in STATIC_ASSETS {
         let vnode = ensure_file_vnode(
             db,
@@ -268,18 +281,30 @@ async fn ensure_static_assets(
         )
         .await?
         .0;
-        let media_url = public_asset_url(vnode.id);
         tracing::info!(
             name = asset.name,
             vnode_id = vnode.id,
-            media_url = %media_url,
+            media_url = %public_asset_url(vnode.id),
             bytes = asset.bytes.len(),
             "resummarized website: static asset ready"
         );
-        ensure_db_route(db, &format!("/static/{}", asset.name), vnode.id, "", false).await?;
-        urls.push((asset.name.to_string(), media_url));
     }
-    Ok(urls)
+    Ok(())
+}
+
+/// Drop leftover `/static/{name}` aliases from earlier seeds.
+async fn remove_legacy_static_routes(db: &DatabaseConnection) -> anyhow::Result<()> {
+    for asset in STATIC_ASSETS {
+        let path = format!("/static/{}", asset.name);
+        let res = DbRouteEntity::delete_many()
+            .filter(DbRouteColumn::Path.eq(path.clone()))
+            .exec(db)
+            .await?;
+        if res.rows_affected > 0 {
+            tracing::info!(path, "resummarized website: removed legacy static route");
+        }
+    }
+    Ok(())
 }
 
 async fn ensure_file_vnode(
@@ -393,11 +418,12 @@ async fn ensure_db_route(
 #[cfg(test)]
 mod tests {
     use super::{
-        HOMEPAGE_HTML, SUBSCRIBE_HTML, THEME_CSS, first_hardcoded_media_url, rewrite_static_urls,
+        HOMEPAGE_HTML, SUBSCRIBE_HTML, THEME_CSS, first_hardcoded_media_url, has_legacy_static_url,
+        reject_nonportable_asset_urls,
     };
 
     #[test]
-    fn seeded_assets_do_not_hardcode_media_vnode_ids() {
+    fn seeded_assets_use_media_url_not_static_routes() {
         let css = std::str::from_utf8(THEME_CSS).expect("theme css is utf-8");
         for (label, source) in [
             ("homepage.html", HOMEPAGE_HTML),
@@ -409,22 +435,23 @@ mod tests {
                 None,
                 "{label} hardcodes a /media/{{id}}/ vnode URL"
             );
+            assert!(
+                !has_legacy_static_url(source),
+                "{label} still references /static/ instead of media_url"
+            );
+            assert!(
+                source.contains("media_url('/website/static/"),
+                "{label} should call media_url(\"/website/static/...\")"
+            );
         }
     }
 
     #[test]
-    fn rewrite_static_urls_rejects_hardcoded_media_ids() {
-        let err = rewrite_static_urls(r#"<img src="/media/23/">"#, &[]).unwrap_err();
+    fn reject_nonportable_asset_urls_catches_legacy_refs() {
+        let err = reject_nonportable_asset_urls("page", r#"<img src="/media/23/">"#).unwrap_err();
         assert!(err.to_string().contains("/media/23/"), "{err}");
-    }
-
-    #[test]
-    fn rewrite_static_urls_rewrites_static_paths() {
-        let html = rewrite_static_urls(
-            r#"<img src="/static/logo.svg">"#,
-            &[("logo.svg".into(), "/media/9/".into())],
-        )
-        .expect("portable /static/ paths should rewrite");
-        assert_eq!(html, r#"<img src="/media/9/">"#);
+        let err =
+            reject_nonportable_asset_urls("page", r#"<img src="/static/logo.svg">"#).unwrap_err();
+        assert!(err.to_string().contains("media_url"), "{err}");
     }
 }

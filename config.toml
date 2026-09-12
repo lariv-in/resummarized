@@ -4,6 +4,9 @@ bind = "0.0.0.0:42069"
 [users]
 adminEmail = "admin@example.com"
 adminPassword = "adminadmin"
+signingKey = "qvi5ckimoA7pcTjVR/BPiCud3oyQZR49CeDf0VMutbnKw0J5qyhQ9XEOPsQzfLgkdf91IyzctRqxW4mbVFrIWgkLxQhw/9e8R7RpqpQsczKj05jERz6w7Ala++YeadSYcdTjUlU6w8JlDbBiqPqGXx43SZ9uBG/H5A8QUyFq2Ym/w9gBJrl7yn3KcQK4mw9M9sLlNhstBXfEGiagNKkw0JRrXH2uTdsQX6VdDCMZlNT3c4BG0gwIuGvOgNO8kgkT705acYJgBw3JviAjw7UQZMu7XAVEh3CZSnmON50DHPaWFLJFQQC6zdKNMww2wu3ruKWk2l3/snoXRGdymhLtGg=="
+jwtIssuer = "eniKEcr7EH4of7jJhinYKxoj9qATQyApa0yTHH/Rt4oM0GbemHaS87lvFnqG/OKUUA4GGHXQnQViAjtLWQ36CnK341WfmkwZSBy8OHT6VjF3srCsNgi0xfY3uYXze+3AGON3Oos1cgEuDWttLjg5EQ4U0piI4vPlWRkVeJVRq+PqOdOlVHskxM9a2dfAVUYbx5WD2aPHLzXrb2Ry5o4dpXa2bnTfcYSAdqn+90JHQvvmipWouZ05NgzzLKRLdJU+NKxWsswfwxKCKS3NYpvwU3FUswhzOuv01qc20UnJ/MIhkm0BKsg8xW8v1Rr1t5d7Z/INps9xo1JvtSnYUFygQA=="
+
 
 [filesystem]
 storageBackend = "local"

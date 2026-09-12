@@ -945,7 +945,7 @@ pub async fn send_subscriber_emails(
     .map_err(|e| EmailSendError::Send(e.to_string()))?
 }
 
-/// Default daily-market HTML email (lists for feeds, highlights, and upcoming actions).
+/// Default daily-market HTML email (lists for highlights and upcoming actions).
 pub const DEFAULT_EMAIL_HTML_TEMPLATE: &str = include_str!("email_template.html");
 
 #[cfg(test)]
@@ -967,15 +967,6 @@ mod tests {
             "sensex_close": "81,234.56",
             "sensex_change": "+245.10",
             "sensex_pct": "+0.30%",
-            "total_filings_count": "142",
-            "feed_integrity_pct": "100%",
-            "feed_integrity_detail": "0 Errors / Active",
-            "feeds_operational": "35 / 35 Operational",
-            "bse_feed_summary": "12/12 Healthy",
-            "nse_feed_summary": "23/23 Healthy",
-            "bse_feeds": ["announcements", "sensex", "board-meetings"],
-            "nse_feeds": ["announcements", "board-meetings", "brsr"],
-            "pipeline_health": "100% Operational (Zero poll failures or latency errors recorded across all endpoints).",
             "highlights": [
                 {
                     "name": "Ratnaveer Precision Engineering Ltd (BSE: 543978 / NSE: RATNAVEER)",
@@ -1048,7 +1039,9 @@ mod tests {
         assert!(html.contains("Session: 11 Sep 2026 | Coverage:"), "{html}");
         assert!(html.contains(">81,234.56<"), "{html}");
         assert!(html.contains("+245.10 (+0.30%)"), "{html}");
-        assert!(html.contains(">142<"), "{html}");
+        assert!(!html.contains("FEED INTEGRITY"), "{html}");
+        assert!(!html.contains("DISCLOSURES"), "{html}");
+        assert!(!html.contains("Infrastructure Health"), "{html}");
         assert!(html.contains("RATNAVEER"), "{html}");
         assert!(html.contains("mobilizing ₹330 Crores"), "{html}");
         assert!(
@@ -1056,10 +1049,6 @@ mod tests {
             "variable ampersands must be escaped: {html}"
         );
         assert!(html.contains("SRILOTUS"), "{html}");
-        assert!(
-            html.contains("announcements, sensex, board-meetings."),
-            "{html}"
-        );
         assert!(html.contains("Ex-Date: 11 September 2026"), "{html}");
         assert!(html.contains("11-Sep-2026"), "{html}");
         assert!(
@@ -1098,8 +1087,10 @@ mod tests {
         assert!(keys.contains(&"report_date"), "{keys:?}");
         assert!(keys.contains(&"pdf_download_url"), "{keys:?}");
         assert!(keys.contains(&"highlights"), "{keys:?}");
-        assert!(keys.contains(&"bse_feeds"), "{keys:?}");
         assert!(keys.contains(&"upcoming_actions"), "{keys:?}");
+        assert!(!keys.contains(&"bse_feeds"), "{keys:?}");
+        assert!(!keys.contains(&"feed_integrity_pct"), "{keys:?}");
+        assert!(!keys.contains(&"total_filings_count"), "{keys:?}");
         assert!(keys.contains(&"service_name"), "{keys:?}");
         assert!(!keys.contains(&"email"), "{keys:?}");
         assert!(!keys.contains(&"subscriber_email"), "{keys:?}");
@@ -1128,7 +1119,7 @@ mod tests {
         );
         assert_eq!(ctx["report_date"], json!(""));
         assert_eq!(ctx["highlights"], json!([]));
-        assert_eq!(ctx["bse_feeds"], json!([]));
+        assert_eq!(ctx["upcoming_actions"], json!([]));
     }
 
     #[test]
@@ -1169,7 +1160,6 @@ mod tests {
         assert!(!required.iter().any(|v| v == "email"), "{required:?}");
         assert_eq!(schema["properties"]["report_date"]["type"], "string");
         assert_eq!(schema["properties"]["report_date"]["label"], "Report Date");
-        assert_eq!(schema["properties"]["bse_feeds"]["type"], "array");
         assert_eq!(schema["properties"]["highlights"]["type"], "array");
         assert_eq!(
             schema["properties"]["highlights"]["items"]["required"],
@@ -1178,7 +1168,7 @@ mod tests {
         let signature = schema["signature"].as_str().expect("signature");
         assert!(signature.starts_with("#{ "), "{signature}");
         assert!(signature.contains("report_date: string"), "{signature}");
-        assert!(signature.contains("bse_feeds: [string]"), "{signature}");
+        assert!(!signature.contains("bse_feeds"), "{signature}");
         assert!(
             signature.contains("highlights: [#{ name: string, disclosure: string }]"),
             "{signature}"
