@@ -26,18 +26,73 @@
 	<section data-gjs-type="p_website.cta" data-show-button="false" class="gjs-cta section subscribe-main">
 		<div class="container">
 			<div class="gjs-cta-box cta-box">
-				<h1 class="gjs-cta-title">Get the weekly letter</h1>
-				<p class="gjs-cta-text lead">Resummarized lands in your inbox once a week, a summary of how the market
-					moved.</p>
+				<h1 class="gjs-cta-title">Get the letter</h1>
+				<p class="gjs-cta-text lead">Choose how often Resummarized lands in your inbox, and optionally narrow it
+					to exchanges, companies, and event types. Leave a filter blank to include everything.</p>
 				<p class="subscribe-status is-ok" data-subscribe-ok hidden aria-live="polite">You're subscribed. The
-					next weekly letter will land in this inbox.</p>
+					next letter will land in this inbox on your chosen cadence.</p>
 				<p class="subscribe-status is-error" data-subscribe-error hidden aria-live="polite"></p>
 				<form class="subscribe-form" method="post" action="/subscribe/join">
 					<input type="hidden" name="csrf_token" value="{{ csrf_token() }}" autocomplete="off">
-					<label class="subscribe-label" for="subscribe-email">Email address</label>
-					<div class="subscribe-row">
+					<div class="subscribe-fields">
+						<label class="subscribe-label" for="subscribe-email">Email address</label>
 						<input id="subscribe-email" class="subscribe-input" type="email" name="email" required
 							autocomplete="email" inputmode="email" placeholder="you@example.com">
+						<fieldset class="subscribe-fieldset">
+							<legend class="subscribe-label">How often</legend>
+							<div class="subscribe-ribbon" role="radiogroup" aria-label="How often">
+								<label class="subscribe-ribbon-choice">
+									<input type="radio" name="newsletter_interval" value="daily">
+									<span>Daily</span>
+								</label>
+								<label class="subscribe-ribbon-choice is-active">
+									<input type="radio" name="newsletter_interval" value="weekly" checked>
+									<span>Weekly</span>
+								</label>
+								<label class="subscribe-ribbon-choice">
+									<input type="radio" name="newsletter_interval" value="monthly">
+									<span>Monthly</span>
+								</label>
+							</div>
+						</fieldset>
+						<fieldset class="subscribe-fieldset">
+							<legend class="subscribe-label">Exchanges</legend>
+							<p class="subscribe-hint">Leave empty to include every exchange. Type to search, then pick from the list.</p>
+							<div class="subscribe-combobox" data-subscribe-exchanges data-name="filter_exchanges" data-placeholder="Search exchanges…">
+								<div class="subscribe-combobox-control">
+									<div class="subscribe-combobox-chips" data-chips></div>
+									<input class="subscribe-input subscribe-combobox-input" type="text" autocomplete="off" spellcheck="false" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-describedby="subscribe-exchanges-error" placeholder="Search exchanges…">
+								</div>
+								<p class="subscribe-combobox-error" id="subscribe-exchanges-error" data-error hidden role="alert"></p>
+								<ul class="subscribe-combobox-menu" hidden data-menu role="listbox"></ul>
+							</div>
+						</fieldset>
+						<fieldset class="subscribe-fieldset">
+							<legend class="subscribe-label">Companies</legend>
+							<p class="subscribe-hint">Leave empty to include all companies. Type symbols or company names, then pick or press Enter.</p>
+							<div class="subscribe-combobox" data-subscribe-entities data-name="filter_entities" data-placeholder="Search or add companies…">
+								<div class="subscribe-combobox-control">
+									<div class="subscribe-combobox-chips" data-chips></div>
+									<input class="subscribe-input subscribe-combobox-input" type="text" autocomplete="off" spellcheck="false" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-describedby="subscribe-entities-error" placeholder="Search or add companies…">
+								</div>
+								<p class="subscribe-combobox-error" id="subscribe-entities-error" data-error hidden role="alert"></p>
+								<ul class="subscribe-combobox-menu" hidden data-menu role="listbox"></ul>
+							</div>
+						</fieldset>
+						<fieldset class="subscribe-fieldset">
+							<legend class="subscribe-label">Event types</legend>
+							<p class="subscribe-hint">Leave empty to include every feed. Type to search, then pick from the list.</p>
+							<div class="subscribe-combobox" data-subscribe-event-types data-name="filter_event_types" data-placeholder="Search event types…">
+								<div class="subscribe-combobox-control">
+									<div class="subscribe-combobox-chips" data-chips></div>
+									<input class="subscribe-input subscribe-combobox-input" type="text" autocomplete="off" spellcheck="false" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-describedby="subscribe-event-types-error" placeholder="Search event types…">
+								</div>
+								<p class="subscribe-combobox-error" id="subscribe-event-types-error" data-error hidden role="alert"></p>
+								<ul class="subscribe-combobox-menu" hidden data-menu role="listbox"></ul>
+							</div>
+						</fieldset>
+					</div>
+					<div class="subscribe-row">
 						<button type="submit" class="gjs-button btn btn-primary">Subscribe</button>
 					</div>
 				</form>
@@ -50,7 +105,7 @@
 				<a href="/" aria-label="Resummarized" class="brand footer-brand">
 					<img src="{{ media_url('/website/static/logo.svg') }}" alt="Resummarized" class="brand-logo" />
 				</a>
-				<p class="footer-tagline">A weekly newsletter on stock market movements, summarized and ready to read.</p>
+				<p class="footer-tagline">A newsletter on stock market movements, summarized and ready to read on the cadence you choose.</p>
 			</div>
 			<div>
 				<h4>The letter</h4>
@@ -72,7 +127,7 @@
 			var err = document.querySelector("[data-subscribe-error]");
 			var form = document.querySelector(".subscribe-form");
 			var messages = {
-				invalid: "Enter a valid email address.",
+				invalid: "Enter a valid email address and newsletter interval.",
 				taken: "This email is already subscribed.",
 				save: "Something went wrong. Please try again."
 			};
@@ -84,6 +139,507 @@
 			if (code && err) {
 				err.hidden = false;
 				err.textContent = messages[code] || messages.save;
+			}
+
+			// Synchronize button-ribbon radio selection
+			var ribbonChoices = document.querySelectorAll(".subscribe-ribbon-choice");
+			ribbonChoices.forEach(function (choice) {
+				var radio = choice.querySelector("input[type='radio']");
+				if (!radio) return;
+				radio.addEventListener("change", function () {
+					ribbonChoices.forEach(function (c) {
+						var r = c.querySelector("input[type='radio']");
+						c.classList.toggle("is-active", !!(r && r.checked));
+					});
+				});
+			});
+
+			var comboboxInstances = [];
+			var exchangesCombobox = null;
+			var eventTypesCombobox = null;
+
+			var defaultEventTypes = [
+				{ key: "announcements", label: "Announcements (NSE)", exchange: "nse" },
+				{ key: "annual-reports", label: "Annual Reports (NSE)", exchange: "nse" },
+				{ key: "board-meetings", label: "Board Meetings (NSE)", exchange: "nse" },
+				{ key: "brsr", label: "Business Responsibility and Sustainability Report (NSE)", exchange: "nse" },
+				{ key: "corporate-actions", label: "Corporate Actions (NSE)", exchange: "nse" },
+				{ key: "corporate-governance", label: "Corporate Governance (NSE)", exchange: "nse" },
+				{ key: "daily-buyback", label: "Daily Buy Back / Redemption (NSE)", exchange: "nse" },
+				{ key: "financial-results", label: "Financial Results (NSE)", exchange: "nse" },
+				{ key: "integrated-filing-financials", label: "Integrated Filing- Financials (NSE)", exchange: "nse" },
+				{ key: "insider-trading", label: "Insider Trading (NSE)", exchange: "nse" },
+				{ key: "investor-complaints", label: "Investor Complaints (NSE)", exchange: "nse" },
+				{ key: "offer-documents", label: "Issuer Offer documents/Issue Summary Document (NSE)", exchange: "nse" },
+				{ key: "related-party-transactions", label: "Related Party Transactions (NSE)", exchange: "nse" },
+				{ key: "regulation-29", label: "Regulation 29 (NSE)", exchange: "nse" },
+				{ key: "regulation-31", label: "Regulation 31 (NSE)", exchange: "nse" },
+				{ key: "reason-for-encumbrance", label: "Reason For Encumbrance (NSE)", exchange: "nse" },
+				{ key: "secretarial-compliance", label: "Secretarial Compliance (NSE)", exchange: "nse" },
+				{ key: "share-transfers", label: "Share Transfers (NSE)", exchange: "nse" },
+				{ key: "shareholding-pattern", label: "Shareholding Pattern (NSE)", exchange: "nse" },
+				{ key: "statement-of-deviation", label: "Statement of Deviation & Variation (NSE)", exchange: "nse" },
+				{ key: "unitholding-patterns", label: "Unitholding Patterns (NSE)", exchange: "nse" },
+				{ key: "voting-results", label: "Voting Results (NSE)", exchange: "nse" },
+				{ key: "circulars", label: "Circulars (NSE)", exchange: "nse" },
+				{ key: "sensex", label: "SENSEX (BSE)", exchange: "bse" },
+				{ key: "notices", label: "Notices (BSE)", exchange: "bse" },
+				{ key: "announcements", label: "Corporate Announcements (BSE)", exchange: "bse" },
+				{ key: "corporate-actions", label: "Corporate Actions (BSE)", exchange: "bse" },
+				{ key: "voting-results", label: "Voting Results (BSE)", exchange: "bse" },
+				{ key: "annual-reports", label: "Annual Reports (BSE)", exchange: "bse" },
+				{ key: "board-meetings", label: "Board Meetings (BSE)", exchange: "bse" },
+				{ key: "insider-trading", label: "Insider Trading (BSE)", exchange: "bse" },
+				{ key: "financial-results", label: "Financial Results (BSE)", exchange: "bse" },
+				{ key: "shareholding-pattern", label: "Shareholding Patterns (BSE)", exchange: "bse" },
+				{ key: "media-release", label: "BSE Media Release (BSE)", exchange: "bse" },
+				{ key: "index-media-release", label: "BSE Index Media Release (BSE)", exchange: "bse" },
+				{ key: "news-releases", label: "All News Releases (Nasdaq)", exchange: "nasdaq" },
+				{ key: "financial-releases", label: "Financial Releases (Nasdaq)", exchange: "nasdaq" },
+				{ key: "sec-filings", label: "All SEC Filings (Nasdaq)", exchange: "nasdaq" },
+				{ key: "form-4-sec-filings", label: "Form 4 SEC Filings (Nasdaq)", exchange: "nasdaq" },
+				{ key: "8-k", label: "8-K Material Events (SEC EDGAR)", exchange: "edgar" },
+				{ key: "10-k-10-q", label: "10-K / 10-Q Periodic Reports (SEC EDGAR)", exchange: "edgar" },
+				{ key: "all-filings", label: "All SEC Filings (SEC EDGAR)", exchange: "edgar" },
+				{ key: "form-4", label: "Form 4 Insider Transactions (SEC EDGAR)", exchange: "edgar" },
+				{ key: "market-news", label: "Market News (JPX)", exchange: "jpx" },
+				{ key: "news-release", label: "News Release (JPX)", exchange: "jpx" },
+				{ key: "equities-halt", label: "Trading Halt (Equities) (JPX)", exchange: "jpx" },
+				{ key: "derivatives-halt", label: "Trading Halt (Derivatives) (JPX)", exchange: "jpx" },
+				{ key: "alerts", label: "Alerts on Unclear Information (JPX)", exchange: "jpx" },
+				{ key: "site-updates", label: "Site Updates (JPX)", exchange: "jpx" },
+				{ key: "full-feed", label: "Full Feed (Euronext)", exchange: "euronext" },
+				{ key: "press-releases", label: "Press Releases (Euronext)", exchange: "euronext" },
+				{ key: "issuer-announcements", label: "Issuer Announcements (Euronext)", exchange: "euronext" },
+				{ key: "corporate-actions", label: "Corporate Actions (Euronext)", exchange: "euronext" },
+				{ key: "forced-sales", label: "Forced Sales (Euronext)", exchange: "euronext" },
+				{ key: "securities-market-bulletin", label: "Securities Market Bulletin (Euronext)", exchange: "euronext" },
+				{ key: "risk-management", label: "Risk Management (Euronext)", exchange: "euronext" },
+				{ key: "financial-data", label: "Financial Data (Euronext)", exchange: "euronext" },
+				{ key: "market-notices", label: "Market Notices (Euronext)", exchange: "euronext" },
+				{ key: "non-listed", label: "Non-Listed Issuers (Euronext)", exchange: "euronext" }
+			];
+			var allEventTypes = defaultEventTypes;
+
+			function syncEventTypesToExchanges() {
+				if (!eventTypesCombobox) return;
+				var selectedExchanges = exchangesCombobox ? exchangesCombobox.getSelected().map(function (s) {
+					return String(s.key).toLowerCase();
+				}) : [];
+
+				if (selectedExchanges.length === 0) {
+					eventTypesCombobox.setOptions(allEventTypes);
+				} else {
+					// 1. Prune selected event types that don't belong to any selected exchange
+					eventTypesCombobox.filterSelected(function (item) {
+						var ex = (item.exchange || "").toLowerCase();
+						if (!ex) {
+							var match = allEventTypes.find(function (opt) { return opt.key === item.key; });
+							if (match && match.exchange) ex = match.exchange.toLowerCase();
+						}
+						return !ex || selectedExchanges.indexOf(ex) !== -1;
+					});
+
+					// 2. Restrict available dropdown options to selected exchanges
+					var filtered = allEventTypes.filter(function (opt) {
+						return !opt.exchange || selectedExchanges.indexOf(String(opt.exchange).toLowerCase()) !== -1;
+					});
+					eventTypesCombobox.setOptions(filtered);
+				}
+			}
+
+			var exchangesEl = document.querySelector("[data-subscribe-exchanges]");
+			if (exchangesEl) {
+				fetch("/subscribe/exchanges").then(function (r) {
+					return r.ok ? r.json() : Promise.reject();
+				}).then(function (options) {
+					exchangesCombobox = initCombobox(exchangesEl, options || [], {
+						itemType: "exchange",
+						allowCustom: false,
+						onChange: function () {
+							syncEventTypesToExchanges();
+						}
+					});
+					comboboxInstances.push(exchangesCombobox);
+					syncEventTypesToExchanges();
+				}).catch(function () {
+					var fallback = [
+						{ key: "nse", label: "NSE" },
+						{ key: "bse", label: "BSE" },
+						{ key: "nasdaq", label: "Nasdaq" },
+						{ key: "edgar", label: "SEC EDGAR" },
+						{ key: "jpx", label: "JPX" },
+						{ key: "euronext", label: "Euronext" }
+					];
+					exchangesCombobox = initCombobox(exchangesEl, fallback, {
+						itemType: "exchange",
+						allowCustom: false,
+						onChange: function () {
+							syncEventTypesToExchanges();
+						}
+					});
+					comboboxInstances.push(exchangesCombobox);
+					syncEventTypesToExchanges();
+				});
+			}
+
+			var entitiesEl = document.querySelector("[data-subscribe-entities]");
+			if (entitiesEl) {
+				var popularEntities = [
+					{ key: "RELIANCE", label: "RELIANCE" },
+					{ key: "TCS", label: "TCS" },
+					{ key: "INFY", label: "INFY" },
+					{ key: "HDFCBANK", label: "HDFCBANK" },
+					{ key: "ICICIBANK", label: "ICICIBANK" },
+					{ key: "AAPL", label: "AAPL" },
+					{ key: "MSFT", label: "MSFT" },
+					{ key: "GOOGL", label: "GOOGL" },
+					{ key: "AMZN", label: "AMZN" },
+					{ key: "NVDA", label: "NVDA" }
+				];
+				comboboxInstances.push(initCombobox(entitiesEl, popularEntities, {
+					itemType: "company",
+					allowCustom: true,
+					transformKey: function (s) { return s.trim().toUpperCase(); },
+					transformLabel: function (s) { return s.trim().toUpperCase(); }
+				}));
+			}
+
+			var eventTypesEl = document.querySelector("[data-subscribe-event-types]");
+			if (eventTypesEl) {
+				eventTypesCombobox = initCombobox(eventTypesEl, defaultEventTypes, {
+					itemType: "event type",
+					allowCustom: false
+				});
+				comboboxInstances.push(eventTypesCombobox);
+				syncEventTypesToExchanges();
+
+				fetch("/subscribe/event-types").then(function (r) {
+					return r.ok ? r.json() : Promise.reject();
+				}).then(function (options) {
+					if (options && options.length) {
+						allEventTypes = options;
+						syncEventTypesToExchanges();
+					}
+				}).catch(function () {
+					// defaultEventTypes already loaded
+				});
+			}
+
+			if (form) {
+				form.addEventListener("submit", function (e) {
+					for (var i = 0; i < comboboxInstances.length; i++) {
+						if (!comboboxInstances[i].commitQuery()) {
+							e.preventDefault();
+							return;
+						}
+					}
+				});
+			}
+
+			function initCombobox(root, options, config) {
+				config = config || {};
+				var name = root.getAttribute("data-name") || config.name || "";
+				var placeholder = root.getAttribute("data-placeholder") || config.placeholder || "Search…";
+				var chips = root.querySelector("[data-chips]");
+				var input = root.querySelector(".subscribe-combobox-input");
+				var menu = root.querySelector("[data-menu]");
+				var errorEl = root.querySelector("[data-error]");
+				var control = root.querySelector(".subscribe-combobox-control");
+				var itemType = config.itemType || "item";
+				var allowCustom = !!config.allowCustom;
+				var transformKey = config.transformKey || function (s) { return s; };
+				var transformLabel = config.transformLabel || function (s) { return s; };
+
+				if (!chips || !input || !menu) return {
+					commitQuery: function () { return true; },
+					getSelected: function () { return []; },
+					setOptions: function () {},
+					filterSelected: function () {}
+				};
+				var selected = [];
+				var highlight = 0;
+
+				function getSelected() {
+					return selected.slice();
+				}
+
+				function setOptions(newOptions) {
+					options = newOptions || [];
+					syncError();
+					if (document.activeElement === input) {
+						renderMenu();
+					}
+				}
+
+				function filterSelected(predicate) {
+					var origLen = selected.length;
+					selected = selected.filter(predicate);
+					if (selected.length !== origLen) {
+						renderChips();
+						if (config.onChange) {
+							config.onChange(selected.slice());
+						}
+					}
+				}
+
+				function unused() {
+					var q = (input.value || "").trim().toLowerCase();
+					return options.filter(function (opt) {
+						if (selected.some(function (item) {
+							if (item.key !== opt.key) return false;
+							if (item.exchange && opt.exchange) return item.exchange === opt.exchange;
+							return true;
+						})) return false;
+						if (!q) return true;
+						return String(opt.label).toLowerCase().indexOf(q) !== -1
+							|| String(opt.key).toLowerCase().indexOf(q) !== -1;
+					});
+				}
+
+				function unknownError(q) {
+					return "No listed " + itemType + " matches " + JSON.stringify(q) + ".";
+				}
+
+				function setError(msg) {
+					if (errorEl) {
+						errorEl.hidden = !msg;
+						errorEl.textContent = msg || "";
+					}
+					root.classList.toggle("is-invalid", !!msg);
+					input.setAttribute("aria-invalid", msg ? "true" : "false");
+				}
+
+				function syncError() {
+					if (allowCustom) {
+						setError("");
+						return;
+					}
+					var q = (input.value || "").trim();
+					if (q && !unused().length) setError(unknownError(q));
+					else setError("");
+				}
+
+				function add(opt) {
+					if (!opt) return;
+					var key = String(opt.key).trim();
+					var label = String(opt.label).trim();
+					var exchange = opt.exchange ? String(opt.exchange).trim() : "";
+					if (!key) return;
+					if (selected.some(function (item) {
+						if (item.key !== key) return false;
+						if (exchange && item.exchange) return item.exchange === exchange;
+						return true;
+					})) {
+						input.value = "";
+						highlight = 0;
+						setError("");
+						render();
+						return;
+					}
+					selected.push({ key: key, label: label, exchange: exchange });
+					input.value = "";
+					highlight = 0;
+					setError("");
+					renderChips();
+					input.focus();
+					renderMenu(true);
+					if (config.onChange) {
+						config.onChange(selected.slice());
+					}
+				}
+
+				function addCustom(rawText) {
+					var parts = rawText.split(",");
+					var addedAny = false;
+					parts.forEach(function (part) {
+						var trimmed = part.trim();
+						if (!trimmed) return;
+						var key = transformKey(trimmed);
+						var label = transformLabel(trimmed);
+						if (!selected.some(function (item) { return item.key === key; })) {
+							selected.push({ key: key, label: label });
+							addedAny = true;
+						}
+					});
+					input.value = "";
+					highlight = 0;
+					setError("");
+					renderChips();
+					if (addedAny && config.onChange) {
+						config.onChange(selected.slice());
+					}
+					return addedAny;
+				}
+
+				function commitQuery() {
+					var q = (input.value || "").trim();
+					if (!q) {
+						setError("");
+						return true;
+					}
+					var items = unused();
+					if (items.length) {
+						add(items[highlight] || items[0]);
+						return true;
+					}
+					if (allowCustom) {
+						addCustom(q);
+						menu.hidden = true;
+						input.setAttribute("aria-expanded", "false");
+						return true;
+					}
+					setError(unknownError(q));
+					menu.hidden = true;
+					input.setAttribute("aria-expanded", "false");
+					input.focus();
+					return false;
+				}
+
+				function renderChips() {
+					chips.innerHTML = "";
+					selected.forEach(function (item) {
+						var chip = document.createElement("span");
+						chip.className = "subscribe-chip";
+						chip.appendChild(document.createTextNode(item.label));
+						var hidden = document.createElement("input");
+						hidden.type = "hidden";
+						hidden.name = name;
+						hidden.value = item.key;
+						chip.appendChild(hidden);
+						var remove = document.createElement("button");
+						remove.type = "button";
+						remove.className = "subscribe-chip-remove";
+						remove.setAttribute("aria-label", "Remove " + item.label);
+						remove.textContent = "×";
+						remove.addEventListener("click", function (e) {
+							e.preventDefault();
+							selected = selected.filter(function (cur) {
+								if (cur.key !== item.key) return true;
+								if (item.exchange && cur.exchange) return item.exchange !== cur.exchange;
+								return false;
+							});
+							render();
+							input.focus();
+							if (config.onChange) {
+								config.onChange(selected.slice());
+							}
+						});
+						chip.appendChild(remove);
+						chips.appendChild(chip);
+					});
+					input.placeholder = selected.length ? "" : placeholder;
+				}
+
+				function renderMenu(force) {
+					var items = unused();
+					menu.innerHTML = "";
+					if (!items.length || (!force && document.activeElement !== input)) {
+						menu.hidden = true;
+						input.setAttribute("aria-expanded", "false");
+						return;
+					}
+					if (highlight >= items.length) highlight = items.length - 1;
+					if (highlight < 0) highlight = 0;
+					items.forEach(function (opt, idx) {
+						var li = document.createElement("li");
+						li.setAttribute("role", "option");
+						li.className = "subscribe-combobox-option" + (idx === highlight ? " is-active" : "");
+						li.textContent = opt.label;
+						li.addEventListener("mousedown", function (e) {
+							e.preventDefault();
+							add(opt);
+						});
+						menu.appendChild(li);
+					});
+					menu.hidden = false;
+					input.setAttribute("aria-expanded", "true");
+				}
+
+				function render() {
+					renderChips();
+					renderMenu();
+				}
+
+				if (control) {
+					control.addEventListener("click", function (e) {
+						if (e.target.closest(".subscribe-chip-remove")) return;
+						input.focus();
+					});
+				}
+
+				input.addEventListener("focus", function () {
+					highlight = 0;
+					renderMenu();
+				});
+				input.addEventListener("input", function () {
+					highlight = 0;
+					if (allowCustom && input.value.indexOf(",") !== -1) {
+						addCustom(input.value);
+						render();
+						return;
+					}
+					syncError();
+					renderMenu();
+				});
+				input.addEventListener("keydown", function (e) {
+					var items = unused();
+					if (e.key === "ArrowDown") {
+						e.preventDefault();
+						highlight = items.length ? (highlight + 1) % items.length : 0;
+						renderMenu();
+					} else if (e.key === "ArrowUp") {
+						e.preventDefault();
+						highlight = items.length ? (highlight - 1 + items.length) % items.length : 0;
+						renderMenu();
+					} else if (e.key === "Enter") {
+						e.preventDefault();
+						commitQuery();
+					} else if (e.key === "," && allowCustom) {
+						e.preventDefault();
+						commitQuery();
+					} else if (e.key === "Escape") {
+						menu.hidden = true;
+						input.setAttribute("aria-expanded", "false");
+					} else if (e.key === "Backspace" && !input.value && selected.length) {
+						selected.pop();
+						render();
+						if (config.onChange) {
+							config.onChange(selected.slice());
+						}
+					}
+				});
+				input.addEventListener("blur", function () {
+					window.setTimeout(function () {
+						menu.hidden = true;
+						input.setAttribute("aria-expanded", "false");
+						var q = (input.value || "").trim();
+						if (!q) {
+							setError("");
+							return;
+						}
+						if (allowCustom) {
+							addCustom(q);
+							return;
+						}
+						if (unused().length) {
+							input.value = "";
+							setError("");
+							return;
+						}
+						setError(unknownError(q));
+					}, 120);
+				});
+
+				renderChips();
+				if (document.activeElement === input) renderMenu(true);
+
+				return {
+					commitQuery: commitQuery,
+					getSelected: getSelected,
+					setOptions: setOptions,
+					filterSelected: filterSelected
+				};
 			}
 		})();
 	</script>

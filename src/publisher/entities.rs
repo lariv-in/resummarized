@@ -5,3 +5,5 @@ pub use publisher_preferences::Entity as PublisherPreferencesEntity;
 pub use publisher_preferences::Model as PublisherPreferences;
 pub use subscriber::Entity as SubscriberEntity;
 pub use subscriber::Model as Subscriber;
+pub use subscriber::NewsletterInterval;
+pub use subscriber::UniqueFilter;

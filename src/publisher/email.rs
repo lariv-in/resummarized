@@ -16,7 +16,7 @@ use minijinja::{
 use sea_orm::DatabaseConnection;
 use serde_json::{Map, Value as JsonValue, json};
 
-use super::entities::PublisherPreferences;
+use super::entities::{NewsletterInterval, PublisherPreferences, UniqueFilter};
 
 #[derive(Debug)]
 pub enum EmailSendError {
@@ -91,6 +91,37 @@ pub async fn all_subscriber_emails(db: &DatabaseConnection) -> Result<Vec<String
         .into_iter()
         .map(|m| m.email)
         .collect())
+}
+
+/// Emails of subscribers matching the given newsletter interval and unique filter.
+pub async fn matching_subscriber_emails(
+    db: &DatabaseConnection,
+    interval: NewsletterInterval,
+    filter: &UniqueFilter,
+) -> Result<Vec<String>, sea_orm::DbErr> {
+    use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
+    use super::entities::SubscriberEntity;
+    use super::entities::subscriber::{self, json_to_optional_string_list};
+
+    let rows: Vec<subscriber::Model> = SubscriberEntity::find()
+        .filter(subscriber::Column::NewsletterInterval.eq(interval))
+        .all(db)
+        .await?;
+
+    let emails = rows
+        .into_iter()
+        .filter(|row| {
+            let row_filter = UniqueFilter {
+                exchanges: json_to_optional_string_list(&row.filter_exchanges),
+                companies: json_to_optional_string_list(&row.filter_entities),
+                event_types: json_to_optional_string_list(&row.filter_event_types),
+            };
+            &row_filter == filter
+        })
+        .map(|row| row.email)
+        .collect();
+
+    Ok(emails)
 }
 
 /// Load file bytes for each selected VNode. Directory nodes attach their direct child files.
@@ -945,6 +976,193 @@ pub async fn send_subscriber_emails(
     .map_err(|e| EmailSendError::Send(e.to_string()))?
 }
 
+/// Send a transactional notification when an edit subscription link has been opened.
+pub const DEFAULT_EDIT_LINK_EMAIL_SUBJECT: &str =
+    "Change your Resummarized subscription preferences";
+
+pub const DEFAULT_EDIT_LINK_EMAIL_TEMPLATE: &str = r#"<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.5; color: #111; background-color: #fafafa; padding: 24px; }
+    .card { max-width: 560px; margin: 0 auto; background: #fff; border: 1px solid #e5e5e5; border-radius: 8px; padding: 32px; }
+    h2 { margin-top: 0; color: #111; font-size: 20px; }
+    p { color: #444; font-size: 15px; margin: 16px 0; }
+    .btn { display: inline-block; background-color: #111; color: #fff !important; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: 500; font-size: 14px; margin: 16px 0; }
+    .footer { font-size: 12px; color: #888; margin-top: 24px; border-top: 1px solid #eee; padding-top: 16px; word-break: break-all; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>Manage Your Subscription</h2>
+    <p>You can manage and update your subscription preferences for Resummarized using your secure link below.</p>
+    <p>Customize your delivery cadence and filter stock market updates by exchange, company, or event type:</p>
+    <p><a href="{{ edit_link }}" class="btn">Update Subscription Preferences</a></p>
+    <p class="footer">Or copy and paste this URL into your browser:<br>{{ edit_link }}</p>
+    <p class="footer">If you did not request this link, you can safely ignore this email.</p>
+  </div>
+</body>
+</html>"#;
+
+pub const DEFAULT_EDIT_OPENED_EMAIL_SUBJECT: &str =
+    "Your Resummarized subscription preferences link";
+
+pub const DEFAULT_EDIT_OPENED_EMAIL_TEMPLATE: &str = r#"<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.5; color: #111; background-color: #fafafa; padding: 24px; }
+    .card { max-width: 560px; margin: 0 auto; background: #fff; border: 1px solid #e5e5e5; border-radius: 8px; padding: 32px; }
+    h2 { margin-top: 0; color: #111; font-size: 20px; }
+    p { color: #444; font-size: 15px; margin: 16px 0; }
+    .btn { display: inline-block; background-color: #111; color: #fff !important; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: 500; font-size: 14px; margin: 16px 0; }
+    .footer { font-size: 12px; color: #888; margin-top: 24px; border-top: 1px solid #eee; padding-top: 16px; word-break: break-all; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>Subscription Preferences Accessed</h2>
+    <p>We noticed that your subscription edit page was recently opened. For your security, your one-time link has been regenerated.</p>
+    <p>If you still need to update your preferences, or if you closed your browser tab, you can use your new link below:</p>
+    <p><a href="{{ edit_link }}" class="btn">Update Subscription Preferences</a></p>
+    <p class="footer">Or copy and paste this URL into your browser:<br>{{ edit_link }}</p>
+    <p class="footer">If you did not make this request, you can safely ignore this email.</p>
+  </div>
+</body>
+</html>"#;
+
+pub const DEFAULT_EDIT_UPDATED_EMAIL_SUBJECT: &str =
+    "Your Resummarized subscription preferences were updated";
+
+pub const DEFAULT_EDIT_UPDATED_EMAIL_TEMPLATE: &str = r#"<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.5; color: #111; background-color: #fafafa; padding: 24px; }
+    .card { max-width: 560px; margin: 0 auto; background: #fff; border: 1px solid #e5e5e5; border-radius: 8px; padding: 32px; }
+    h2 { margin-top: 0; color: #111; font-size: 20px; }
+    p { color: #444; font-size: 15px; margin: 16px 0; }
+    .btn { display: inline-block; background-color: #111; color: #fff !important; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: 500; font-size: 14px; margin: 16px 0; }
+    .footer { font-size: 12px; color: #888; margin-top: 24px; border-top: 1px solid #eee; padding-top: 16px; word-break: break-all; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>Subscription Preferences Updated</h2>
+    <p>Your subscription preferences for Resummarized have been updated successfully.</p>
+    <p>If you need to make changes in the future, you can access your edit page anytime using your new secure link:</p>
+    <p><a href="{{ edit_link }}" class="btn">Manage Preferences</a></p>
+    <p class="footer">Or copy and paste this URL into your browser:<br>{{ edit_link }}</p>
+    <p class="footer">If you did not perform this change, please contact support.</p>
+  </div>
+</body>
+</html>"#;
+
+/// Send an email to a subscriber inviting them to change/manage their subscription preferences.
+pub async fn send_change_subscription_email(
+    prefs: &PublisherPreferences,
+    recipient: &str,
+    edit_link: &str,
+) -> Result<(), EmailSendError> {
+    let subject_tmpl = if prefs.edit_link_email_subject.trim().is_empty() {
+        DEFAULT_EDIT_LINK_EMAIL_SUBJECT
+    } else {
+        prefs.edit_link_email_subject.as_str()
+    };
+    let html_tmpl = if prefs.edit_link_email_template.trim().is_empty() {
+        DEFAULT_EDIT_LINK_EMAIL_TEMPLATE
+    } else {
+        prefs.edit_link_email_template.as_str()
+    };
+    let ctx = serde_json::json!({
+        "edit_link": edit_link,
+        "email": recipient,
+    });
+    let subject = render_email_subject(subject_tmpl, &ctx)?;
+    let html = render_email_html(html_tmpl, &ctx)?;
+    send_subscriber_emails(
+        prefs,
+        &[recipient.to_string()],
+        &subject,
+        &html,
+        &serde_json::json!({}),
+        Vec::new(),
+    )
+    .await
+    .map(|_| ())
+}
+
+/// Send a transactional notification when the subscription edit page is opened.
+pub async fn send_edit_link_opened_email(
+    prefs: &PublisherPreferences,
+    recipient: &str,
+    new_edit_link: &str,
+) -> Result<(), EmailSendError> {
+    let subject_tmpl = if prefs.edit_opened_email_subject.trim().is_empty() {
+        DEFAULT_EDIT_OPENED_EMAIL_SUBJECT
+    } else {
+        prefs.edit_opened_email_subject.as_str()
+    };
+    let html_tmpl = if prefs.edit_opened_email_template.trim().is_empty() {
+        DEFAULT_EDIT_OPENED_EMAIL_TEMPLATE
+    } else {
+        prefs.edit_opened_email_template.as_str()
+    };
+    let ctx = serde_json::json!({
+        "edit_link": new_edit_link,
+        "email": recipient,
+    });
+    let subject = render_email_subject(subject_tmpl, &ctx)?;
+    let html = render_email_html(html_tmpl, &ctx)?;
+    send_subscriber_emails(
+        prefs,
+        &[recipient.to_string()],
+        &subject,
+        &html,
+        &serde_json::json!({}),
+        Vec::new(),
+    )
+    .await
+    .map(|_| ())
+}
+
+/// Send a transactional notification when subscription preferences have been updated.
+pub async fn send_subscription_updated_email(
+    prefs: &PublisherPreferences,
+    recipient: &str,
+    new_edit_link: &str,
+) -> Result<(), EmailSendError> {
+    let subject_tmpl = if prefs.edit_updated_email_subject.trim().is_empty() {
+        DEFAULT_EDIT_UPDATED_EMAIL_SUBJECT
+    } else {
+        prefs.edit_updated_email_subject.as_str()
+    };
+    let html_tmpl = if prefs.edit_updated_email_template.trim().is_empty() {
+        DEFAULT_EDIT_UPDATED_EMAIL_TEMPLATE
+    } else {
+        prefs.edit_updated_email_template.as_str()
+    };
+    let ctx = serde_json::json!({
+        "edit_link": new_edit_link,
+        "email": recipient,
+    });
+    let subject = render_email_subject(subject_tmpl, &ctx)?;
+    let html = render_email_html(html_tmpl, &ctx)?;
+    send_subscriber_emails(
+        prefs,
+        &[recipient.to_string()],
+        &subject,
+        &html,
+        &serde_json::json!({}),
+        Vec::new(),
+    )
+    .await
+    .map(|_| ())
+}
+
 /// Default daily-market HTML email (lists for highlights and upcoming actions).
 pub const DEFAULT_EMAIL_HTML_TEMPLATE: &str = include_str!("email_template.html");
 
@@ -1215,5 +1433,29 @@ mod tests {
             panic!("object");
         };
         validate_template_context(&map, &specs).expect("sample report context matches schema");
+    }
+
+    #[test]
+    fn subscription_email_templates_render_with_context() {
+        let ctx = serde_json::json!({
+            "edit_link": "https://example.com/subscribe/edit?email=test%40example.com&one_time_token=123",
+            "email": "test@example.com",
+        });
+
+        // Test default templates
+        let def_subj = render_email_subject(DEFAULT_EDIT_LINK_EMAIL_SUBJECT, &ctx).expect("render subject");
+        assert_eq!(def_subj, "Change your Resummarized subscription preferences");
+
+        let def_html = render_email_html(DEFAULT_EDIT_LINK_EMAIL_TEMPLATE, &ctx).expect("render html");
+        assert!(def_html.contains("https://example.com/subscribe/edit?email=test%40example.com&amp;one_time_token=123") || def_html.contains("https://example.com/subscribe/edit?email=test%40example.com&one_time_token=123"));
+        assert!(def_html.contains("Update Subscription Preferences"));
+
+        // Test custom template from preferences
+        let custom_subj = render_email_subject("Custom update for {{ email }}", &ctx).expect("render custom subject");
+        assert_eq!(custom_subj, "Custom update for test@example.com");
+
+        let custom_html = render_email_html("<a href=\"{{ edit_link }}\">Click here to manage {{ email }}</a>", &ctx).expect("render custom html");
+        assert!(custom_html.contains("https://example.com/subscribe/edit?email=test%40example.com"));
+        assert!(custom_html.contains("test@example.com"));
     }
 }

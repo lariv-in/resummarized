@@ -16,6 +16,12 @@ pub struct Model {
     pub smtp_username: String,
     pub smtp_password: String,
     pub smtp_from: String,
+    pub edit_link_email_subject: String,
+    pub edit_link_email_template: String,
+    pub edit_opened_email_subject: String,
+    pub edit_opened_email_template: String,
+    pub edit_updated_email_subject: String,
+    pub edit_updated_email_template: String,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

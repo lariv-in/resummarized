@@ -2,7 +2,6 @@
 //! https://ir.nasdaq.com/tools/rss-feeds.
 
 pub mod apps;
-pub mod atom;
 pub mod config;
 pub mod entities;
 pub mod feeds;
@@ -15,6 +14,7 @@ pub mod routes;
 pub mod rss;
 pub mod rune_env;
 pub mod state;
+pub mod stock_market;
 pub mod templates;
 pub mod workers;
 
@@ -44,6 +44,7 @@ define_plugin_install! {
     plugin: NasdaqTag;
     /// Register Nasdaq RSS migrations, routes, templates, dashboard tile, and poller.
     steps: [
+        cap_hook(crate::stock_markets::StockMarketTag, crate::stock_markets::StockMarketsCap, stock_market::Hook),
         apps(apps::Hook),
         rune_env(rune_env::Hook),
         migrations(migrations::Hook),

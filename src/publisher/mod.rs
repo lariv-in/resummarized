@@ -1,6 +1,7 @@
 //! Publisher plugin — subscriber list for newsletter / publication mailing.
 
 pub mod apps;
+pub mod catalog;
 pub mod create_modals;
 pub mod crumbs;
 pub mod email;
@@ -10,6 +11,7 @@ pub mod handlers;
 pub mod keys;
 pub mod migrations;
 pub mod preferences;
+pub mod rate_limit;
 pub mod routes;
 pub mod rune_env;
 pub mod scope;

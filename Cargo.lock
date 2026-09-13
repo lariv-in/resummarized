@@ -2721,6 +2721,7 @@ dependencies = [
 [[package]]
 name = "lariv-rs"
 version = "0.1.0"
+source = "git+https://github.com/lariv-in/lariv-rs?rev=99c1c77c5ff46da7fe22698fe79b9aeecb90a5d7#99c1c77c5ff46da7fe22698fe79b9aeecb90a5d7"
 dependencies = [
  "anyhow",
  "async-imap",
@@ -2786,6 +2787,7 @@ dependencies = [
 [[package]]
 name = "lariv-rs-macros"
 version = "0.1.0"
+source = "git+https://github.com/lariv-in/lariv-rs?rev=99c1c77c5ff46da7fe22698fe79b9aeecb90a5d7#99c1c77c5ff46da7fe22698fe79b9aeecb90a5d7"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4455,6 +4457,7 @@ dependencies = [
  "async-trait",
  "axum",
  "chrono",
+ "form_urlencoded",
  "frunk",
  "frunk_core",
  "lariv-rs",
@@ -4470,6 +4473,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "tokio",
+ "tower",
  "tracing",
  "tracing-subscriber",
  "uuid",

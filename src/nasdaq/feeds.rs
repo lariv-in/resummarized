@@ -69,24 +69,6 @@ impl NasdaqFeedKind {
         }
     }
 
-    /// SEC EDGAR Atom if the official IR RSS endpoint is unreachable.
-    pub fn fallback_url(self) -> &'static str {
-        match self {
-            NasdaqFeedKind::NewsReleases => {
-                "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001120193&type=8-K&owner=exclude&count=15&output=atom"
-            }
-            NasdaqFeedKind::FinancialReleases => {
-                "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001120193&type=10&owner=exclude&count=15&output=atom"
-            }
-            NasdaqFeedKind::SecFilings => {
-                "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001120193&owner=include&count=15&output=atom"
-            }
-            NasdaqFeedKind::Form4SecFilings => {
-                "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001120193&type=4&owner=only&count=15&output=atom"
-            }
-        }
-    }
-
     pub fn from_slug(slug: &str) -> Option<Self> {
         Self::ALL.iter().copied().find(|kind| kind.slug() == slug)
     }
@@ -156,13 +138,8 @@ mod tests {
     fn catalog_has_unique_slugs_and_urls() {
         let slugs: HashSet<_> = NasdaqFeedKind::ALL.iter().map(|k| k.slug()).collect();
         let urls: HashSet<_> = NasdaqFeedKind::ALL.iter().map(|k| k.url()).collect();
-        let fallbacks: HashSet<_> = NasdaqFeedKind::ALL
-            .iter()
-            .map(|k| k.fallback_url())
-            .collect();
         assert_eq!(slugs.len(), NasdaqFeedKind::ALL.len());
         assert_eq!(urls.len(), NasdaqFeedKind::ALL.len());
-        assert_eq!(fallbacks.len(), NasdaqFeedKind::ALL.len());
         assert_eq!(NasdaqFeedKind::ALL.len(), 4);
     }
 

@@ -6,7 +6,7 @@ use std::path::PathBuf;
 
 use lariv_rs::app::App;
 use lariv_rs::plugins::{dashboard, filesystem, llm_assistant, otp, signup, users, website};
-use resummarized::{bse, euronext, jpx, nasdaq, nse, publisher, website_seed};
+use resummarized::{bse, edgar, euronext, jpx, nasdaq, nse, publisher, stock_markets, website_seed};
 
 const STACK_SIZE: usize = 64 * 1024 * 1024;
 
@@ -43,9 +43,11 @@ fn resummarized_stack_mounts() {
                 let app = signup::install(app);
                 let app = filesystem::install(app);
                 let app = llm_assistant::install(app);
+                let app = stock_markets::install(app);
                 let app = nse::install(app);
                 let app = bse::install(app);
                 let app = nasdaq::install(app);
+                let app = edgar::install(app);
                 let app = euronext::install(app);
                 let app = jpx::install(app);
                 let app = publisher::install(app);

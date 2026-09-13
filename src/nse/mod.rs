@@ -23,6 +23,7 @@ pub mod scr;
 pub mod shp;
 pub mod sod;
 pub mod state;
+pub mod stock_market;
 pub mod templates;
 pub mod uhp;
 pub mod voting;
@@ -55,6 +56,7 @@ define_plugin_install! {
     plugin: NseTag;
     /// Register NSE RSS migrations, routes, templates, dashboard tile, and poller.
     steps: [
+        cap_hook(crate::stock_markets::StockMarketTag, crate::stock_markets::StockMarketsCap, stock_market::Hook),
         apps(apps::Hook),
         rune_env(rune_env::Hook),
         migrations(migrations::Hook),

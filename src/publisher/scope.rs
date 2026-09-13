@@ -57,6 +57,12 @@ pub fn apply_subscriber_sort(
         } else {
             query.order_by_asc(subscriber::Column::SubscriptionDate)
         }
+    } else if let Some(desc) = sort_desc(sort, "NewsletterInterval") {
+        if desc {
+            query.order_by_desc(subscriber::Column::NewsletterInterval)
+        } else {
+            query.order_by_asc(subscriber::Column::NewsletterInterval)
+        }
     } else {
         query.order_by_desc(subscriber::Column::Id)
     }

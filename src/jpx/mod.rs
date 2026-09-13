@@ -14,6 +14,7 @@ pub mod routes;
 pub mod rss;
 pub mod rune_env;
 pub mod state;
+pub mod stock_market;
 pub mod templates;
 pub mod workers;
 
@@ -43,6 +44,7 @@ define_plugin_install! {
     plugin: JpxTag;
     /// Register JPX RSS migrations, routes, templates, dashboard tile, and poller.
     steps: [
+        cap_hook(crate::stock_markets::StockMarketTag, crate::stock_markets::StockMarketsCap, stock_market::Hook),
         apps(apps::Hook),
         rune_env(rune_env::Hook),
         migrations(migrations::Hook),

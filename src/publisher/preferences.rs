@@ -31,6 +31,12 @@ pub async fn load_preferences(
         smtp_username: Set(String::new()),
         smtp_password: Set(String::new()),
         smtp_from: Set(String::new()),
+        edit_link_email_subject: Set(String::new()),
+        edit_link_email_template: Set(String::new()),
+        edit_opened_email_subject: Set(String::new()),
+        edit_opened_email_template: Set(String::new()),
+        edit_updated_email_subject: Set(String::new()),
+        edit_updated_email_template: Set(String::new()),
     };
     model.insert(db).await
 }
@@ -47,6 +53,12 @@ pub async fn save_preferences(
     am.smtp_username = Set(prefs.smtp_username);
     am.smtp_password = Set(prefs.smtp_password);
     am.smtp_from = Set(prefs.smtp_from);
+    am.edit_link_email_subject = Set(prefs.edit_link_email_subject);
+    am.edit_link_email_template = Set(prefs.edit_link_email_template);
+    am.edit_opened_email_subject = Set(prefs.edit_opened_email_subject);
+    am.edit_opened_email_template = Set(prefs.edit_opened_email_template);
+    am.edit_updated_email_subject = Set(prefs.edit_updated_email_subject);
+    am.edit_updated_email_template = Set(prefs.edit_updated_email_template);
     am.updated_at = Set(Some(Utc::now()));
     am.update(db).await
 }
@@ -62,5 +74,11 @@ pub fn empty_preferences() -> PublisherPreferences {
         smtp_username: String::new(),
         smtp_password: String::new(),
         smtp_from: String::new(),
+        edit_link_email_subject: String::new(),
+        edit_link_email_template: String::new(),
+        edit_opened_email_subject: String::new(),
+        edit_opened_email_template: String::new(),
+        edit_updated_email_subject: String::new(),
+        edit_updated_email_template: String::new(),
     }
 }

@@ -9,14 +9,13 @@ use sea_orm::{
 use tracing::{info, warn};
 
 use super::{
-    atom,
     entities::{
         item::{self, ActiveModel as ItemAM, Entity as ItemEntity, Model as ItemModel},
         status::{ActiveModel as StatusAM, Entity as StatusEntity},
     },
     feeds::{NasdaqFeedKind, form_type_from_title},
     rss::{
-        ParsedItems, content_hash, looks_atom, looks_complete_feed, looks_like_html,
+        ParsedItems, content_hash, looks_complete, looks_like_html,
         parse_nasdaq_datetime, parse_rss,
     },
     state::NasdaqState,
@@ -25,7 +24,6 @@ use super::{
 /// Akamai on `ir.nasdaq.com` 403s browser User-Agents that are not a real
 /// Chrome TLS stack. `curl -SL` with this UA returns the RSS body.
 const IR_UA: &str = "curl/8.22.0";
-const SEC_UA: &str = "Resummarized/0.1 (admin@example.com)";
 const INTER_FEED_DELAY: Duration = Duration::from_millis(500);
 const RSS_DOWNLOAD_ATTEMPTS: u8 = 3;
 
@@ -74,22 +72,13 @@ async fn fetch_one(state: &NasdaqState, kind: NasdaqFeedKind) -> anyhow::Result<
 }
 
 async fn download_body(state: &NasdaqState, url: &str) -> anyhow::Result<String> {
-    let sec = url.contains("sec.gov");
-    let request = state
+    let response = state
         .client
         .get(url)
-        .header("User-Agent", if sec { SEC_UA } else { IR_UA });
-    let request = if sec {
-        request.header(
-            "Accept",
-            "application/atom+xml, application/xml, text/xml, */*",
-        )
-    } else {
-        // Match `curl -SL`: extra Accept/Referer with a curl UA is fine, but
-        // browser Accept/Referer is what Akamai 403s.
-        request.header("Accept", "*/*")
-    };
-    let response = request.send().await?;
+        .header("User-Agent", IR_UA)
+        .header("Accept", "*/*")
+        .send()
+        .await?;
     let status = response.status();
     let bytes = response.bytes().await?;
     if !status.is_success() {
@@ -99,72 +88,56 @@ async fn download_body(state: &NasdaqState, url: &str) -> anyhow::Result<String>
 }
 
 fn parse_document(xml: &str) -> Result<ParsedItems, quick_xml::DeError> {
-    if looks_atom(xml) {
-        atom::parse_atom(xml)
-    } else {
-        parse_rss(xml).map(ParsedItems::from_rss)
-    }
+    parse_rss(xml).map(ParsedItems::from_rss)
 }
 
 async fn download_rss(state: &NasdaqState, kind: NasdaqFeedKind) -> anyhow::Result<String> {
-    let urls = [kind.url(), kind.fallback_url()];
+    let url = kind.url();
     let mut last_err: Option<anyhow::Error> = None;
-    for (source, url) in urls.iter().enumerate() {
-        let attempts = RSS_DOWNLOAD_ATTEMPTS;
-        for attempt in 1..=attempts {
-            match download_body(state, url).await {
-                Ok(xml) if looks_like_html(&xml) => {
-                    last_err = Some(anyhow::anyhow!(
-                        "HTML instead of feed ({} bytes)",
-                        xml.len()
-                    ));
-                    warn!(
-                        feed = kind.slug(),
-                        attempt,
-                        url,
-                        bytes = xml.len(),
-                        "Nasdaq feed returned HTML"
-                    );
-                }
-                Ok(xml) if looks_complete_feed(&xml) => {
-                    if source > 0 {
-                        info!(feed = kind.slug(), url, "Nasdaq using EDGAR fallback feed");
-                    }
+    for attempt in 1..=RSS_DOWNLOAD_ATTEMPTS {
+        match download_body(state, url).await {
+            Ok(xml) if looks_like_html(&xml) => {
+                last_err = Some(anyhow::anyhow!(
+                    "HTML instead of feed ({} bytes)",
+                    xml.len()
+                ));
+                warn!(
+                    feed = kind.slug(),
+                    attempt,
+                    url,
+                    bytes = xml.len(),
+                    "Nasdaq feed returned HTML"
+                );
+            }
+            Ok(xml) if looks_complete(&xml) => {
+                return Ok(xml);
+            }
+            Ok(xml) => {
+                last_err = Some(anyhow::anyhow!("truncated feed ({} bytes)", xml.len()));
+                warn!(
+                    feed = kind.slug(),
+                    attempt,
+                    url,
+                    bytes = xml.len(),
+                    "truncated Nasdaq feed"
+                );
+                if attempt == RSS_DOWNLOAD_ATTEMPTS {
                     return Ok(xml);
                 }
-                Ok(xml) => {
-                    last_err = Some(anyhow::anyhow!("truncated feed ({} bytes)", xml.len()));
-                    warn!(
-                        feed = kind.slug(),
-                        attempt,
-                        url,
-                        bytes = xml.len(),
-                        "truncated Nasdaq feed"
-                    );
-                    if attempt == attempts {
-                        return Ok(xml);
-                    }
-                }
-                Err(e) => {
-                    warn!(
-                        feed = kind.slug(),
-                        attempt,
-                        url,
-                        error = %display_error(&e),
-                        "Nasdaq feed download failed"
-                    );
-                    last_err = Some(e);
-                }
             }
-            if attempt < attempts {
-                tokio::time::sleep(Duration::from_millis(400 * u64::from(attempt))).await;
+            Err(e) => {
+                warn!(
+                    feed = kind.slug(),
+                    attempt,
+                    url,
+                    error = %display_error(&e),
+                    "Nasdaq feed download failed"
+                );
+                last_err = Some(e);
             }
         }
-        if source == 0 {
-            warn!(
-                feed = kind.slug(),
-                "Nasdaq IR feed unreachable, falling back to SEC EDGAR"
-            );
+        if attempt < RSS_DOWNLOAD_ATTEMPTS {
+            tokio::time::sleep(Duration::from_millis(400 * u64::from(attempt))).await;
         }
     }
     Err(last_err.unwrap_or_else(|| anyhow::anyhow!("Nasdaq feed download failed")))
@@ -331,27 +304,6 @@ mod tests {
         let xml = response.text().await.expect("body");
         assert!(
             status.is_success() && xml.contains("<rss") && xml.contains("<item>"),
-            "status={status} body={}",
-            &xml[..xml.len().min(300)]
-        );
-    }
-
-    #[tokio::test]
-    #[ignore = "hits sec.gov"]
-    async fn live_edgar_fallback_is_atom() {
-        let client = build_client().expect("client");
-        let url = crate::nasdaq::feeds::NasdaqFeedKind::Form4SecFilings.fallback_url();
-        let response = client
-            .get(url)
-            .header("User-Agent", super::SEC_UA)
-            .header("Accept", "application/atom+xml, application/xml, */*")
-            .send()
-            .await
-            .expect("send");
-        let status = response.status();
-        let xml = response.text().await.expect("body");
-        assert!(
-            status.is_success() && xml.contains("<feed"),
             "status={status} body={}",
             &xml[..xml.len().min(300)]
         );

@@ -4,6 +4,10 @@ use super::PublisherTag;
 
 mod m00001_create_subscribers;
 mod m00002_create_publisher_preferences;
+mod m00003_subscriber_filters;
+mod m00004_subscriber_filter_indexes;
+mod m00005_subscriber_one_time_token;
+mod m00006_subscription_email_templates;
 
 #[derive(Clone, Copy, Default)]
 pub struct Migrator;
@@ -14,6 +18,10 @@ impl MigratorTrait for Migrator {
         vec![
             Box::new(m00001_create_subscribers::Migration),
             Box::new(m00002_create_publisher_preferences::Migration),
+            Box::new(m00003_subscriber_filters::Migration),
+            Box::new(m00004_subscriber_filter_indexes::Migration),
+            Box::new(m00005_subscriber_one_time_token::Migration),
+            Box::new(m00006_subscription_email_templates::Migration),
         ]
     }
 }

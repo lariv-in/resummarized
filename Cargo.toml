@@ -9,7 +9,7 @@ path = "src/main.rs"
 
 [dependencies]
 lariv-rs = { version = "0.1.0",
-	git = "https://github.com/lariv-in/lariv-rs", rev = "bb11cf63cedacb208365c0dad7779d44227ca5e3",
+	git = "https://github.com/lariv-in/lariv-rs", rev = "99c1c77c5ff46da7fe22698fe79b9aeecb90a5d7",
 	# path = "../../lariv-rs",
 	default-features = false, features = [
 		"plugin-users",
@@ -50,11 +50,13 @@ sea-orm = { version = "1.1", features = [
 	"macros",
 	"with-chrono",
 	"with-json",
+	"with-uuid",
 ] }
 sea-orm-migration = { version = "1.1", features = [
 	"sqlx-postgres",
 	"sqlx-sqlite",
 	"runtime-tokio-rustls",
+	"with-uuid",
 ] }
 lettre = { version = "0.11", default-features = false, features = [
 	"smtp-transport",
@@ -63,9 +65,11 @@ lettre = { version = "0.11", default-features = false, features = [
 	"rustls-tls",
 ] }
 minijinja = { version = "2", features = ["serde"] }
+uuid = { version = "1", features = ["v4", "serde"] }
+form_urlencoded = "1"
 
 [dev-dependencies]
-uuid = { version = "1", features = ["v4"] }
+tower = { version = "0.5", features = ["util"] }
 
 [profile.release]
 lto = "thin"

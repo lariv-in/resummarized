@@ -13,13 +13,14 @@ use lariv_rs::{
         sidebar_nav_items_pane, sort_indicator, table_button_bulk_actions, table_button_filter,
         table_create_button, table_pagination,
     },
-    html_form::{CsrfToken, FormCtx, HtmlForm},
+    html_form::{CsrfToken, FormCtx, HtmlForm, csrf_hidden_field},
     http::ProvideRequestCaps,
     template::{RenderAppPane, RenderTemplate, TemplateCapability, TemplateOf, TemplateRegistrar},
     web::{modal_create_post_query, modal_create_post_url, modal_edit_post_url},
 };
 use maud::{Markup, PreEscaped, html};
 
+use super::catalog;
 use super::crumbs::{preferences_crumbs, subscriber_crumbs, subscribers_list_crumbs};
 use super::email::TemplateContextField;
 use super::forms::{
@@ -27,13 +28,16 @@ use super::forms::{
     SubscriberFilterFormField, SubscriberForm, SubscriberFormField,
 };
 use super::keys::{
-    SubscriberCreateModalKey, SubscriberDeleteModalKey, SubscriberEditModalKey,
+    SubscriberBulkDeleteModalKey, SubscriberBulkSendEditLinkModalKey, SubscriberCreateModalKey,
+    SubscriberDeleteModalKey, SubscriberEditModalKey, SubscriberSendEditLinkModalKey,
     SubscriberSendEmailModalKey, SubscriberTableKey,
 };
 use super::routes::{
-    PublisherPrefsGetRouteTag, PublisherPrefsPostRouteTag, SubscriberCreatePostRouteTag,
-    SubscriberDefaultRouteTag, SubscriberDeleteGetRouteTag, SubscriberDetailRouteTag,
-    SubscriberEditGetRouteTag, SubscriberEditPostRouteTag, SubscriberSendEmailPostRouteTag,
+    PublisherPrefsGetRouteTag, PublisherPrefsPostRouteTag, SubscriberBulkDeletePostRouteTag,
+    SubscriberBulkSendEditLinkPostRouteTag, SubscriberCreatePostRouteTag, SubscriberDefaultRouteTag,
+    SubscriberDeleteGetRouteTag, SubscriberDetailRouteTag, SubscriberEditGetRouteTag,
+    SubscriberEditPostRouteTag, SubscriberSendEditLinkGetRouteTag,
+    SubscriberSendEditLinkPostRouteTag, SubscriberSendEmailPostRouteTag,
 };
 
 const CREATE_FORM: &str = "publisher.SubscriberCreateForm";
@@ -136,8 +140,11 @@ lariv_rs::define_register_items! {
         SubscriberCreateModalIdx: SubscriberCreateModalPageTag => SubscriberCreateModalPage,
         SubscriberEditModalIdx: SubscriberEditModalPageTag => SubscriberEditModalPage,
         ConfirmDeleteIdx: PublisherConfirmDeletePageTag => ConfirmDeletePage,
+        ConfirmBulkDeleteIdx: PublisherConfirmBulkDeletePageTag => ConfirmBulkDeletePage,
         PreferencesIdx: PublisherPreferencesPageTag => PublisherPreferencesPage,
         SendEmailModalIdx: SubscriberSendEmailModalPageTag => SubscriberSendEmailModalPage,
+        SendEditLinkModalIdx: SubscriberSendEditLinkModalPageTag => SubscriberSendEditLinkModalPage,
+        BulkSendEditLinkModalIdx: SubscriberBulkSendEditLinkModalPageTag => SubscriberBulkSendEditLinkModalPage,
     ]
 }
 
@@ -156,6 +163,7 @@ pub struct SubscriberRow {
     pub id: i64,
     pub email: String,
     pub subscription_date: String,
+    pub newsletter_interval: String,
 }
 
 #[derive(Generic)]
@@ -212,6 +220,26 @@ impl SubscriberListPage {
             requestBulkSendAll(el) {
                 if (typeof htmx === 'undefined') return;
                 htmx.ajax('GET', this.bulkSendAllHref(), { target: 'body', swap: 'beforeend', source: el });
+            },
+            bulkDeleteHref() {
+                const ids = this.selectedIds();
+                if (ids.length < 1) return '#';
+                return '/publisher/subscribers/bulk-delete/?ids=' + ids.join(',');
+            },
+            requestBulkDelete(el) {
+                const href = this.bulkDeleteHref();
+                if (href === '#' || typeof htmx === 'undefined') return;
+                htmx.ajax('GET', href, { target: 'body', swap: 'beforeend', source: el });
+            },
+            bulkSendEditLinkHref() {
+                const ids = this.selectedIds();
+                if (ids.length < 1) return '#';
+                return '/publisher/subscribers/bulk-send-edit-link/?ids=' + ids.join(',');
+            },
+            requestBulkSendEditLink(el) {
+                const href = this.bulkSendEditLinkHref();
+                if (href === '#' || typeof htmx === 'undefined') return;
+                htmx.ajax('GET', href, { target: 'body', swap: 'beforeend', source: el });
             }
         }"#
     }
@@ -243,6 +271,11 @@ impl SubscriberListPage {
         let date_label = format!(
             "Subscription date{}",
             sort_indicator(&self.sort, "SubscriptionDate")
+        );
+        let interval_sort = column_sort_url(&self.path_and_query, "NewsletterInterval", &self.sort);
+        let interval_label = format!(
+            "Interval{}",
+            sort_indicator(&self.sort, "NewsletterInterval")
         );
         let visible_ids: Vec<i64> = self.subscribers.items.iter().map(|s| s.id).collect();
         let visible_ids_js = format!(
@@ -279,6 +312,12 @@ impl SubscriberListPage {
             sort_url: Some(&date_sort),
             push_url: true,
         });
+        headers.push(TableColumnHeader {
+            key: "NewsletterInterval",
+            label: &interval_label,
+            sort_url: Some(&interval_sort),
+            push_url: true,
+        });
         let rows: Vec<TableRow> = self
             .subscribers
             .items
@@ -301,6 +340,10 @@ impl SubscriberListPage {
                 }));
                 cells.push(field_datetime(FieldDatetime {
                     value: &s.subscription_date,
+                    classes: "",
+                }));
+                cells.push(field_text(FieldText {
+                    value: &s.newsletter_interval,
                     classes: "",
                 }));
                 TableRow {
@@ -350,13 +393,25 @@ impl SubscriberListPage {
                 )
             };
             let bulk_items = format!(
-                "{}{}",
+                "{}{}{}{}",
                 bulk_item("Send email", "btn-ghost", "requestBulkSend", true),
                 bulk_item(
                     "Send to all subscribers",
                     "btn-ghost",
                     "requestBulkSendAll",
                     false
+                ),
+                bulk_item(
+                    "Send subscription edit link",
+                    "btn-ghost",
+                    "requestBulkSendEditLink",
+                    true
+                ),
+                bulk_item(
+                    "Delete selected",
+                    "btn-ghost text-error",
+                    "requestBulkDelete",
+                    true
                 ),
             );
             let bulk_actions = table_button_bulk_actions(html! {
@@ -416,6 +471,10 @@ pub struct SubscriberDetailPage {
     pub id: i64,
     pub email: String,
     pub subscription_date: String,
+    pub filter_exchanges: String,
+    pub filter_entities: String,
+    pub filter_event_types: String,
+    pub newsletter_interval: String,
     pub can_edit: bool,
 }
 
@@ -429,6 +488,15 @@ impl SubscriberDetailPage {
                     form_post_url: &SubscriberEditPostRouteTag::new(self.id).path(),
                     modal_uid: SubscriberEditModalKey::ID,
                     label: "Edit",
+                    classes: "btn-outline",
+                    ..Default::default()
+                }))
+                (button_modal_form(ButtonModalForm {
+                    name: "send_edit_link",
+                    href: &SubscriberSendEditLinkGetRouteTag::new(self.id).url(),
+                    form_post_url: &SubscriberSendEditLinkPostRouteTag::new(self.id).path(),
+                    modal_uid: SubscriberSendEditLinkModalKey::ID,
+                    label: "Send Edit Link",
                     classes: "btn-outline",
                     ..Default::default()
                 }))
@@ -449,6 +517,22 @@ impl SubscriberDetailPage {
                     })))
                     (label("Subscription date", field_datetime(FieldDatetime {
                         value: &self.subscription_date,
+                        classes: "",
+                    })))
+                    (label("Newsletter interval", field_text(FieldText {
+                        value: &self.newsletter_interval,
+                        classes: "",
+                    })))
+                    (label("Exchanges", field_text(FieldText {
+                        value: &self.filter_exchanges,
+                        classes: "",
+                    })))
+                    (label("Companies", field_text(FieldText {
+                        value: &self.filter_entities,
+                        classes: "",
+                    })))
+                    (label("Event types", field_text(FieldText {
+                        value: &self.filter_event_types,
                         classes: "",
                     })))
                 }))
@@ -489,7 +573,46 @@ pub struct SubscriberCreateModalPage {
     pub target_input: String,
     pub email: String,
     pub subscription_date: String,
+    pub filter_exchanges: Vec<String>,
+    pub filter_entities: Vec<String>,
+    pub filter_event_types: Vec<String>,
+    pub newsletter_interval: String,
     pub error: String,
+}
+
+fn subscriber_form_inputs(
+    email: &str,
+    subscription_date: &str,
+    filter_exchanges: &[String],
+    filter_entities: &[String],
+    filter_event_types: &[String],
+    newsletter_interval: &str,
+) -> Markup {
+    let interval_choices = catalog::newsletter_interval_choices();
+    let exchange_choices = catalog::exchange_choices();
+    SubscriberForm::render_inputs(
+        &FormCtx::form::<SubscriberForm>(CsrfToken::current())
+            .value(SubscriberFormField::Email, email)
+            .value(SubscriberFormField::SubscriptionDate, subscription_date)
+            .value(SubscriberFormField::NewsletterInterval, newsletter_interval)
+            .list(SubscriberFormField::FilterExchanges, filter_exchanges)
+            .list(SubscriberFormField::FilterEntities, filter_entities)
+            .list(SubscriberFormField::FilterEventTypes, filter_event_types)
+            .choices(SubscriberFormField::FilterExchanges, &exchange_choices)
+            .choices(SubscriberFormField::NewsletterInterval, &interval_choices)
+            .hint(
+                SubscriberFormField::FilterExchanges,
+                "Leave empty to include all exchanges.",
+            )
+            .hint(
+                SubscriberFormField::FilterEntities,
+                "Leave empty to include all companies.",
+            )
+            .hint(
+                SubscriberFormField::FilterEventTypes,
+                "Leave empty to include all event types. Use feed slugs such as financial-results.",
+            ),
+    )
 }
 
 impl RenderTemplate for SubscriberCreateModalPage {
@@ -511,13 +634,13 @@ impl RenderTemplate for SubscriberCreateModalPage {
                         &self.target_input,
                     )),
                     form_error: Some(self.error.as_str()).filter(|e| !e.is_empty()),
-                    inputs: SubscriberForm::render_inputs(
-                        &FormCtx::form::<SubscriberForm>(CsrfToken::current())
-                            .value(SubscriberFormField::Email, &self.email)
-                            .value(
-                                SubscriberFormField::SubscriptionDate,
-                                &self.subscription_date,
-                            ),
+                    inputs: subscriber_form_inputs(
+                        &self.email,
+                        &self.subscription_date,
+                        &self.filter_exchanges,
+                        &self.filter_entities,
+                        &self.filter_event_types,
+                        &self.newsletter_interval,
                     ),
                     actions: html! {
                         (button_submit(ButtonSubmit { label: "Create subscriber", ..Default::default() }))
@@ -535,6 +658,10 @@ pub struct SubscriberEditModalPage {
     pub form_name: String,
     pub email: String,
     pub subscription_date: String,
+    pub filter_exchanges: Vec<String>,
+    pub filter_entities: Vec<String>,
+    pub filter_event_types: Vec<String>,
+    pub newsletter_interval: String,
     pub error: String,
 }
 
@@ -551,13 +678,13 @@ impl RenderTemplate for SubscriberEditModalPage {
                         &self.form_name,
                     )),
                     form_error: Some(self.error.as_str()).filter(|e| !e.is_empty()),
-                    inputs: SubscriberForm::render_inputs(
-                        &FormCtx::form::<SubscriberForm>(CsrfToken::current())
-                            .value(SubscriberFormField::Email, &self.email)
-                            .value(
-                                SubscriberFormField::SubscriptionDate,
-                                &self.subscription_date,
-                            ),
+                    inputs: subscriber_form_inputs(
+                        &self.email,
+                        &self.subscription_date,
+                        &self.filter_exchanges,
+                        &self.filter_entities,
+                        &self.filter_event_types,
+                        &self.newsletter_interval,
                     ),
                     actions: html! {
                         (button_submit(ButtonSubmit { label: "Save", ..Default::default() }))
@@ -606,6 +733,176 @@ impl RenderTemplate for ConfirmDeletePage {
 }
 
 #[derive(Generic)]
+pub struct ConfirmBulkDeletePage {
+    pub modal_uid: String,
+    pub message: String,
+    pub form_name: String,
+    pub ids: String,
+    pub error: String,
+    pub can_submit: bool,
+}
+
+impl RenderTemplate for ConfirmBulkDeletePage {
+    fn render(&self, _chrome: &ShellChrome) -> Markup {
+        let target = if self.modal_uid.is_empty() {
+            format!("#{}", SubscriberBulkDeleteModalKey::ID)
+        } else {
+            format!("#{}", self.modal_uid)
+        };
+        let uid = if self.modal_uid.is_empty() {
+            SubscriberBulkDeleteModalKey::ID
+        } else {
+            self.modal_uid.as_str()
+        };
+        let post_url = SubscriberBulkDeletePostRouteTag.url();
+        let form_attrs = form_hx_post_selector(&post_url, &target);
+        modal(lariv_rs::components::Modal {
+            uid,
+            children: html! {
+                div class="container mx-auto" {
+                    h2 class="text-xl font-bold text-error" { "Confirm Deletion" }
+                    p class="my-2" { (self.message) }
+                    @if !self.error.is_empty() {
+                        div class="alert alert-error my-2 text-sm" { (self.error) }
+                    }
+                    @if self.can_submit {
+                        (PreEscaped(format!(
+                            r#"<form class="flex flex-col gap-2 my-4"{}>"#,
+                            form_attrs.as_string(),
+                        )))
+                        (csrf_hidden_field(&CsrfToken::current()))
+                        input type="hidden" name="ids" value=(self.ids);
+                        div class="my-2" {
+                            (button_submit(ButtonSubmit {
+                                label: "Confirm Delete",
+                                classes: "btn-error my-2",
+                                ..Default::default()
+                            }))
+                        }
+                        (PreEscaped("</form>"))
+                    }
+                }
+            },
+            ..Default::default()
+        })
+    }
+}
+
+#[derive(Generic)]
+pub struct SubscriberSendEditLinkModalPage {
+    pub modal_uid: String,
+    pub subscriber_id: i64,
+    pub email: String,
+    pub error: String,
+}
+
+impl RenderTemplate for SubscriberSendEditLinkModalPage {
+    fn render(&self, _chrome: &ShellChrome) -> Markup {
+        let target = if self.modal_uid.is_empty() {
+            format!("#{}", SubscriberSendEditLinkModalKey::ID)
+        } else {
+            format!("#{}", self.modal_uid)
+        };
+        let uid = if self.modal_uid.is_empty() {
+            SubscriberSendEditLinkModalKey::ID
+        } else {
+            self.modal_uid.as_str()
+        };
+        let post_url = SubscriberSendEditLinkPostRouteTag::new(self.subscriber_id).url();
+        let form_attrs = form_hx_post_selector(&post_url, &target);
+        modal(lariv_rs::components::Modal {
+            uid,
+            children: html! {
+                div class="container mx-auto" {
+                    h2 class="text-xl font-bold" { "Send Subscription Change Email" }
+                    p class="my-2" {
+                        "Are you sure you want to send a subscription change email with a secure link to "
+                        strong { (self.email) }
+                        "?"
+                    }
+                    @if !self.error.is_empty() {
+                        div class="alert alert-error my-2 text-sm" { (self.error) }
+                    }
+                    (PreEscaped(format!(
+                        r#"<form class="flex flex-col gap-2 my-4"{}>"#,
+                        form_attrs.as_string(),
+                    )))
+                    (csrf_hidden_field(&CsrfToken::current()))
+                    div class="my-2" {
+                        (button_submit(ButtonSubmit {
+                            label: "Send Link",
+                            classes: "btn-primary my-2",
+                            ..Default::default()
+                        }))
+                    }
+                    (PreEscaped("</form>"))
+                }
+            },
+            ..Default::default()
+        })
+    }
+}
+
+#[derive(Generic)]
+pub struct SubscriberBulkSendEditLinkModalPage {
+    pub modal_uid: String,
+    pub ids: String,
+    pub recipient_count: usize,
+    pub error: String,
+    pub can_submit: bool,
+}
+
+impl RenderTemplate for SubscriberBulkSendEditLinkModalPage {
+    fn render(&self, _chrome: &ShellChrome) -> Markup {
+        let target = if self.modal_uid.is_empty() {
+            format!("#{}", SubscriberBulkSendEditLinkModalKey::ID)
+        } else {
+            format!("#{}", self.modal_uid)
+        };
+        let uid = if self.modal_uid.is_empty() {
+            SubscriberBulkSendEditLinkModalKey::ID
+        } else {
+            self.modal_uid.as_str()
+        };
+        let post_url = SubscriberBulkSendEditLinkPostRouteTag.url();
+        let form_attrs = form_hx_post_selector(&post_url, &target);
+        modal(lariv_rs::components::Modal {
+            uid,
+            children: html! {
+                div class="container mx-auto" {
+                    h2 class="text-xl font-bold" { "Send Subscription Change Emails" }
+                    p class="my-2" {
+                        "Send subscription change emails with unique links to "
+                        strong { (self.recipient_count) }
+                        " selected subscriber(s)?"
+                    }
+                    @if !self.error.is_empty() {
+                        div class="alert alert-error my-2 text-sm" { (self.error) }
+                    }
+                    @if self.can_submit {
+                        (PreEscaped(format!(
+                            r#"<form class="flex flex-col gap-2 my-4"{}>"#,
+                            form_attrs.as_string(),
+                        )))
+                        (csrf_hidden_field(&CsrfToken::current()))
+                        input type="hidden" name="ids" value=(self.ids);
+                        div class="my-2" {
+                            (button_submit(ButtonSubmit {
+                                label: "Send Emails",
+                                classes: "btn-primary my-2",
+                                ..Default::default()
+                            }))
+                        }
+                        (PreEscaped("</form>"))
+                    }
+                }
+            },
+            ..Default::default()
+        })
+    }
+}
+
+#[derive(Generic)]
 pub struct PublisherPreferencesPage {
     pub html_template: String,
     pub smtp_host: String,
@@ -613,6 +910,12 @@ pub struct PublisherPreferencesPage {
     pub smtp_username: String,
     pub smtp_password: String,
     pub smtp_from: String,
+    pub edit_link_email_subject: String,
+    pub edit_link_email_template: String,
+    pub edit_opened_email_subject: String,
+    pub edit_opened_email_template: String,
+    pub edit_updated_email_subject: String,
+    pub edit_updated_email_template: String,
     pub error: String,
 }
 
@@ -623,7 +926,7 @@ impl PublisherPreferencesPage {
             FormOpts {
                 attrs: form_hx_post_main(PublisherPrefsPostRouteTag),
                 title: "Publisher Preferences",
-                subtitle: "HTML email template and SMTP settings for subscriber mailings",
+                subtitle: "HTML email template, SMTP settings, and subscription change email templates",
                 form_error: Some(self.error.as_str()).filter(|e| !e.is_empty()),
                 inputs: PreferencesForm::render_inputs(
                     &FormCtx::form::<PreferencesForm>(CsrfToken::current())
@@ -641,7 +944,31 @@ impl PublisherPreferencesPage {
                             PreferencesFormField::SmtpPassword,
                             self.smtp_password.as_str(),
                         )
-                        .value(PreferencesFormField::SmtpFrom, self.smtp_from.as_str()),
+                        .value(PreferencesFormField::SmtpFrom, self.smtp_from.as_str())
+                        .value(
+                            PreferencesFormField::EditLinkEmailSubject,
+                            self.edit_link_email_subject.as_str(),
+                        )
+                        .value(
+                            PreferencesFormField::EditLinkEmailTemplate,
+                            self.edit_link_email_template.as_str(),
+                        )
+                        .value(
+                            PreferencesFormField::EditOpenedEmailSubject,
+                            self.edit_opened_email_subject.as_str(),
+                        )
+                        .value(
+                            PreferencesFormField::EditOpenedEmailTemplate,
+                            self.edit_opened_email_template.as_str(),
+                        )
+                        .value(
+                            PreferencesFormField::EditUpdatedEmailSubject,
+                            self.edit_updated_email_subject.as_str(),
+                        )
+                        .value(
+                            PreferencesFormField::EditUpdatedEmailTemplate,
+                            self.edit_updated_email_template.as_str(),
+                        ),
                 ),
                 actions: html! {
                     (button_submit(ButtonSubmit {

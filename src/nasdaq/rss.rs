@@ -90,22 +90,7 @@ pub fn looks_complete(xml: &str) -> bool {
     xml.trim_end().to_ascii_lowercase().ends_with("</rss>")
 }
 
-/// True when the body is an Atom `<feed>`.
-pub fn looks_atom(xml: &str) -> bool {
-    let t = xml
-        .trim_start_matches('\u{feff}')
-        .trim_start()
-        .to_ascii_lowercase();
-    t.contains("<feed") && !t.contains("<rss")
-}
-
-/// True when RSS or Atom looks closed.
-pub fn looks_complete_feed(xml: &str) -> bool {
-    let t = xml.trim_end().to_ascii_lowercase();
-    t.ends_with("</rss>") || t.ends_with("</feed>")
-}
-
-/// Parsed channel items from either IR RSS or EDGAR Atom.
+/// Parsed channel items from Nasdaq IR RSS.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParsedItems {
     pub last_build_date: Option<String>,
