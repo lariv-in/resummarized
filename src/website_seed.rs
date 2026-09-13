@@ -75,6 +75,22 @@ const STATIC_ASSETS: &[StaticAsset] = &[
         bytes: include_bytes!("../assets/static/logo.svg"),
     },
     StaticAsset {
+        name: "Newsreader-Roman.woff2",
+        bytes: include_bytes!("../assets/theme/fonts/Newsreader-Roman.woff2"),
+    },
+    StaticAsset {
+        name: "Newsreader-Italic.woff2",
+        bytes: include_bytes!("../assets/theme/fonts/Newsreader-Italic.woff2"),
+    },
+    StaticAsset {
+        name: "Inter-Roman.woff2",
+        bytes: include_bytes!("../assets/theme/fonts/Inter-Roman.woff2"),
+    },
+    StaticAsset {
+        name: "Inter-Italic.woff2",
+        bytes: include_bytes!("../assets/theme/fonts/Inter-Italic.woff2"),
+    },
+    StaticAsset {
         name: "JunicodeVF-Roman.woff2",
         bytes: include_bytes!("../assets/theme/fonts/JunicodeVF-Roman.woff2"),
     },

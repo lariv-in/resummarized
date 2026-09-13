@@ -25,7 +25,8 @@
 	</nav>
 	<section data-gjs-type="p_website.cta" data-show-button="false" class="gjs-cta section subscribe-main">
 		<div class="container">
-			<div class="gjs-cta-box cta-box">
+			<div class="gjs-cta-box cta-box subscribe-card">
+				<span class="eyebrow">Free Newsletter</span>
 				<h1 class="gjs-cta-title">Get the letter</h1>
 				<p class="gjs-cta-text lead">Choose how often Resummarized lands in your inbox, and optionally narrow it
 					to exchanges, companies, and event types. Leave a filter blank to include everything.</p>
@@ -139,6 +140,13 @@
 			if (code && err) {
 				err.hidden = false;
 				err.textContent = messages[code] || messages.save;
+			}
+			var emailParam = params.get("email");
+			if (emailParam) {
+				var emailInput = document.getElementById("subscribe-email");
+				if (emailInput && !emailInput.value) {
+					emailInput.value = emailParam;
+				}
 			}
 
 			// Synchronize button-ribbon radio selection

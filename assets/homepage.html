@@ -23,22 +23,92 @@
 			</ul>
 		</div>
 	</nav>
+
 	<section data-gjs-type="p_website.hero" data-show-button="true" data-show-media="false" class="gjs-hero hero">
 		<div data-gjs-type="p_website.hero-inner" class="gjs-hero-inner hero-inner">
-			<div class="container">
-				<h1 class="gjs-hero-title hero-title">The week in the market, in one letter.</h1>
-				<p class="gjs-hero-lead lead hero-lead">Resummarized is a weekly newsletter that summarizes how stocks moved: what rose, what fell, and what actually mattered.</p>
-				<div class="hero-actions">
-					<a href="#inside" class="gjs-button btn btn-primary" data-gjs-type="p_website.button">Inside the letter</a>
-					<a href="#how" class="gjs-button btn btn-ghost" data-gjs-type="p_website.button">How it works</a>
+			<div class="container hero-split">
+				<div class="hero-content">
+					<div class="hero-badge">
+						<span class="badge-dot"></span> Weekly Market Intelligence
+					</div>
+					<h1 class="gjs-hero-title hero-title">The week in the market, in one letter.</h1>
+					<p class="gjs-hero-lead lead hero-lead">Resummarized cuts through the daily market noise. Every Saturday morning, get a 5-minute curated briefing on what moved, why it moved, and what actually mattered.</p>
+					
+					<div class="hero-subscribe-box">
+						<form class="hero-subscribe-form" action="/subscribe" method="get">
+							<input type="email" name="email" class="hero-input" placeholder="Enter your email address…" required autocomplete="email" />
+							<button type="submit" class="btn btn-primary hero-btn">Get the letter &rarr;</button>
+						</form>
+					</div>
+
+					<div class="hero-trust">
+						<span><svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg> 100% Free weekly digest</span>
+						<span><svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg> 5-minute read</span>
+						<span><svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg> No noise, unsubscribe anytime</span>
+					</div>
+				</div>
+
+				<div class="preview-letter-wrapper">
+					<div class="preview-letter">
+						<div class="preview-window-bar">
+							<div class="preview-window-dots">
+								<span class="window-dot"></span>
+								<span class="window-dot"></span>
+								<span class="window-dot"></span>
+							</div>
+							<div class="preview-issue-tag">Issue #48 &bull; Saturday Edition</div>
+						</div>
+						<div class="preview-body">
+							<div class="preview-header">
+								<div class="preview-brand-title">Resummarized</div>
+								<div class="preview-date">Saturday, 8:00 AM</div>
+							</div>
+							<div class="preview-ticker-bar">
+								<span class="ticker-pill up">&uarr; S&amp;P 500 +1.42%</span>
+								<span class="ticker-pill up">&uarr; Nasdaq +1.88%</span>
+								<span class="ticker-pill down">&darr; Dow -0.15%</span>
+								<span class="ticker-pill up">&uarr; Nifty 50 +0.94%</span>
+							</div>
+							<div class="preview-story">
+								<div class="story-eyebrow">The Big Mover</div>
+								<h4 class="story-title">Semiconductors surge on datacenter capex disclosures</h4>
+								<p class="story-text">Hyperscaler cloud filings and revised foundry forecasts lifted chipmakers, while hardware margins tightened.</p>
+								<div class="story-chips">
+									<span class="ticker-pill up">&uarr; NVDA +5.8%</span>
+									<span class="ticker-pill up">&uarr; TSM +4.2%</span>
+									<span class="ticker-pill down">&darr; INTC -3.1%</span>
+								</div>
+							</div>
+							<ul class="preview-bullets">
+								<li><span class="bullet-icon">&bull;</span> <strong>SEC 8-K Watch:</strong> Item 2.02 earnings releases beat consensus for 18 of top 25 tech filers.</li>
+								<li><span class="bullet-icon">&bull;</span> <strong>NSE / BSE Pulse:</strong> IT services and capital goods led turnover, offsetting banking lag.</li>
+							</ul>
+						</div>
+					</div>
 				</div>
 			</div>
 		</div>
 	</section>
+
+	<div class="coverage-strip">
+		<div class="container coverage-inner">
+			<span class="coverage-label">Global Feeds &amp; Filings Covered</span>
+			<div class="coverage-badges">
+				<span class="coverage-badge">NSE India</span>
+				<span class="coverage-badge">BSE Mumbai</span>
+				<span class="coverage-badge">Nasdaq</span>
+				<span class="coverage-badge">SEC EDGAR</span>
+				<span class="coverage-badge">JPX Tokyo</span>
+				<span class="coverage-badge">Euronext</span>
+			</div>
+		</div>
+	</div>
+
 	<section data-gjs-type="p_website.section" data-section-bg="base" id="inside" class="gjs-section section">
 		<div class="gjs-section-inner container">
 			<div data-align="center" data-gjs-type="p_website.section-header" data-header-style="default"
 				class="gjs-section-header section-header text-center">
+				<span class="eyebrow">Inside The Letter</span>
 				<h2 class="gjs-section-header-title">What the letter covers</h2>
 				<p class="gjs-section-header-lead lead">A readable recap of the week's market moves, the stocks that
 					stood out, and the stories behind them.</p>
@@ -46,77 +116,109 @@
 			<div data-gjs-type="p_website.row-3" class="gjs-row feature-grid">
 				<div class="gjs-cell">
 					<article data-gjs-type="p_website.feature-card" class="gjs-feature-card feature">
+						<div class="card-icon-wrap">
+							<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline><polyline points="16 7 22 7 22 13"></polyline></svg>
+						</div>
 						<h3 class="gjs-feature-card-title">How the market moved</h3>
-						<p class="gjs-feature-card-desc">Index closes, the shape of the week, and the sectors that led
-							or lagged.</p>
+						<p class="gjs-feature-card-desc">Index closes, the shape of the trading week, and the sector rotations that led or lagged across international sessions.</p>
+						<div class="card-mini-preview">
+							<div class="mini-pills">
+								<span class="ticker-pill up">Tech +2.4%</span>
+								<span class="ticker-pill up">Energy +1.8%</span>
+								<span class="ticker-pill down">Banks -0.7%</span>
+							</div>
+						</div>
 					</article>
 				</div>
 				<div class="gjs-cell">
 					<article data-gjs-type="p_website.feature-card" class="gjs-feature-card feature">
+						<div class="card-icon-wrap">
+							<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+						</div>
 						<h3 class="gjs-feature-card-title">Names that mattered</h3>
-						<p class="gjs-feature-card-desc">The stocks that made the week: big moves, surprises, and the
-							stories attached to them.</p>
+						<p class="gjs-feature-card-desc">The stocks that made the week: institutional moves, unexpected surprises, and the stories attached to them.</p>
+						<div class="card-mini-preview">
+							<div class="mini-pills">
+								<span class="ticker-pill up">AAPL +3.2%</span>
+								<span class="ticker-pill down">TSLA -4.1%</span>
+								<span class="ticker-pill up">NVDA +5.8%</span>
+							</div>
+						</div>
 					</article>
 				</div>
 				<div class="gjs-cell">
 					<article data-gjs-type="p_website.feature-card" class="gjs-feature-card feature">
+						<div class="card-icon-wrap">
+							<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+						</div>
 						<h3 class="gjs-feature-card-title">Why it moved</h3>
-						<p class="gjs-feature-card-desc">The earnings, corporate actions, and news that explain the
-							week's moves.</p>
+						<p class="gjs-feature-card-desc">The material earnings reports, SEC filings, board resolutions, and insider transactions that explain the week's price action.</p>
+						<div class="card-mini-preview">
+							<div class="mini-pills">
+								<span class="ticker-pill up">SEC 8-K Beat</span>
+								<span class="ticker-pill up">Share Buyback</span>
+								<span class="ticker-pill down">Guidance Cut</span>
+							</div>
+						</div>
 					</article>
 				</div>
 			</div>
 		</div>
 	</section>
+
 	<section data-gjs-type="p_website.section" data-section-bg="base-100" id="how"
 		class="gjs-section section section-muted">
 		<div class="gjs-section-inner container">
 			<div data-align="center" data-gjs-type="p_website.section-header" data-header-style="default"
 				class="gjs-section-header section-header text-center">
+				<span class="eyebrow">Our Methodology</span>
 				<h2 class="gjs-section-header-title">Written weekly, sent once</h2>
-				<p class="gjs-section-header-lead lead">Each issue is a recap of the week, written once and sent once.</p>
+				<p class="gjs-section-header-lead lead">Each issue filters millions of trades and thousands of corporate filings into a high-signal 5-minute read.</p>
 			</div>
 			<div data-gjs-type="p_website.row-3" class="gjs-row feature-grid">
 				<div class="gjs-cell">
 					<article data-gjs-type="p_website.feature-card" class="gjs-feature-card feature">
+						<div class="card-step-badge">01</div>
 						<h3 class="gjs-feature-card-title">Follow the week</h3>
-						<p class="gjs-feature-card-desc">We watch how markets traded: the sessions, the swings, and the
-							names that kept coming up.</p>
+						<p class="gjs-feature-card-desc">We continuously monitor market sessions, volatility swings, and regulatory feeds across global exchanges.</p>
 					</article>
 				</div>
 				<div class="gjs-cell">
 					<article data-gjs-type="p_website.feature-card" class="gjs-feature-card feature">
+						<div class="card-step-badge">02</div>
 						<h3 class="gjs-feature-card-title">Cut it down</h3>
-						<p class="gjs-feature-card-desc">The letter keeps the moves that matter and leaves the rest on
-							the cutting-room floor.</p>
+						<p class="gjs-feature-card-desc">We cut through the noise, leaving routine boilerplate on the cutting-room floor and keeping only moves that matter.</p>
 					</article>
 				</div>
 				<div class="gjs-cell">
 					<article data-gjs-type="p_website.feature-card" class="gjs-feature-card feature">
+						<div class="card-step-badge">03</div>
 						<h3 class="gjs-feature-card-title">Send it out</h3>
-						<p class="gjs-feature-card-desc">One email, once a week, ready to read.</p>
+						<p class="gjs-feature-card-desc">One email, once a week, delivered Saturday morning directly to your inbox. Ready to read in five minutes.</p>
 					</article>
 				</div>
 			</div>
 		</div>
 	</section>
+
 	<section data-gjs-type="p_website.cta" data-show-button="true" id="subscribe" class="gjs-cta section">
 		<div class="container">
 			<div class="gjs-cta-box cta-box">
+				<span class="eyebrow">Start This Saturday</span>
 				<h2 class="gjs-cta-title">Get the weekly letter</h2>
-				<p class="gjs-cta-text lead">Resummarized lands in your inbox once a week, a summary of how the market
-					moved.</p>
-				<a href="/subscribe" class="gjs-button btn btn-primary" data-gjs-type="p_website.button">Subscribe</a>
+				<p class="gjs-cta-text lead">Join thousands of investors, founders, and analysts who start their weekend with Resummarized. Clear, curated, and 100% free.</p>
+				<a href="/subscribe" class="gjs-button btn btn-primary" data-gjs-type="p_website.button">Subscribe for Free &rarr;</a>
 			</div>
 		</div>
 	</section>
+
 	<footer class="site-footer">
 		<div class="container footer-grid">
 			<div>
 				<a href="/" aria-label="Resummarized" class="brand footer-brand">
 					<img src="{{ media_url('/website/static/logo.svg') }}" alt="Resummarized" class="brand-logo" />
 				</a>
-				<p class="footer-tagline">A weekly newsletter on stock market movements, summarized and ready to read.</p>
+				<p class="footer-tagline">A weekly intelligence briefing on stock market movements, summarized and ready to read.</p>
 			</div>
 			<div>
 				<h4>The letter</h4>
